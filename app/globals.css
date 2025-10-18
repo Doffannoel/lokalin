@@ -12,15 +12,49 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Rubik", Arial, Helvetica, sans-serif;
+}
+
+.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+}
+
+.dark body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* fokus input yang lebih jelas */
+.input {
+  @apply rounded-md border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-violet-500;
+}
+
+.brand-ellipses {
+  /* Base gradient ungu → biru biar ada depth */
+  background:
+    /* Ellipse 1: atas-tengah */ radial-gradient(
+      220px 220px at 50% 10%,
+      rgba(0, 209, 255, 0.55) 0%,
+      rgba(0, 209, 255, 0) 70%
+    ),
+    /* Ellipse 2: kiri-tengah */
+      radial-gradient(
+        280px 280px at 28% 48%,
+        rgba(0, 209, 255, 0.45) 0%,
+        rgba(0, 209, 255, 0) 72%
+      ),
+    /* Ellipse 3: bawah-tengah */
+      radial-gradient(
+        260px 260px at 50% 85%,
+        rgba(0, 209, 255, 0.4) 0%,
+        rgba(0, 209, 255, 0) 75%
+      ),
+    /* Dasar ungu→biru lembut */
+      linear-gradient(180deg, #5858fa 0%, #4ea2ff 100%);
 }
