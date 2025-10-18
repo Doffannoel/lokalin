@@ -3,8 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { Eye, EyeOff } from "lucide-react";
+import { useState } from "react";
 
 export default function RegisterPage() {
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   return (
     <motion.div
       className="min-h-screen flex bg-white"
@@ -115,13 +120,22 @@ export default function RegisterPage() {
               >
                 Password
               </label>
-              <input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                className="w-full rounded border border-gray-300 bg-gray-200 px-4 py-2 text-sm focus:outline-none focus:border-[#5858FA]"
-                style={{ borderRadius: "4px" }}
-              />
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  className="w-full rounded border border-gray-300 bg-gray-200 px-4 py-2 pr-10 text-sm focus:outline-none focus:border-[#5858FA]"
+                  style={{ borderRadius: "4px" }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
             </motion.div>
 
             {/* Confirm Password */}
@@ -138,13 +152,26 @@ export default function RegisterPage() {
               >
                 Confirm Password
               </label>
-              <input
-                id="confirm"
-                type="password"
-                placeholder="••••••••"
-                className="w-full rounded border border-gray-300 bg-gray-200 px-4 py-2 text-sm focus:outline-none focus:border-[#5858FA]"
-                style={{ borderRadius: "4px" }}
-              />
+              <div className="relative">
+                <input
+                  id="confirm"
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  className="w-full rounded border border-gray-300 bg-gray-200 px-4 py-2 pr-10 text-sm focus:outline-none focus:border-[#5858FA]"
+                  style={{ borderRadius: "4px" }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700"
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff size={16} />
+                  ) : (
+                    <Eye size={16} />
+                  )}
+                </button>
+              </div>
             </motion.div>
 
             {/* Tombol */}
