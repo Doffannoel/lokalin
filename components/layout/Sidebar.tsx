@@ -12,7 +12,7 @@ export default function Sidebar() {
     { icon: Home, label: "Home", href: "/homepage" },
     { icon: Users, label: "Community", href: "/community" },
     { icon: Calendar, label: "Event", href: "/event" },
-    { icon: MoreHorizontal, label: "More", href: "/more" },
+    { icon: MoreHorizontal, label: "Calender", href: "/calender" },
   ];
 
   return (

@@ -25,7 +25,9 @@ export function middleware(req: NextRequest) {
     pathname !== "/login" &&
     pathname !== "/register" &&
     pathname !== "/homepage" &&
-    !pathname.startsWith("/community")
+    !pathname.startsWith("/community") &&
+    !pathname.startsWith("/calender") &&
+    !pathname.startsWith("/event")
   )   {
     return NextResponse.redirect(new URL("/login", req.url));
   }
