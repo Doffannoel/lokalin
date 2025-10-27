@@ -5,9 +5,18 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
+  const router = useRouter();
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Force login: set dummy token
+    document.cookie = "token=dummy-token; path=/";
+    router.push("/homepage");
+  };
 
   return (
     <motion.div
@@ -46,6 +55,7 @@ export default function LoginPage() {
           </h2>
 
           <motion.form
+            onSubmit={handleSubmit}
             className="space-y-4"
             initial="hidden"
             animate="visible"
