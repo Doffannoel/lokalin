@@ -1,11 +1,15 @@
 "use client";
 
+import { useState } from "react"; // Import useState
 import Image from "next/image";
-import { Heart, MoreHorizontal } from "lucide-react";
+import { Heart, MoreHorizontal, Send } from "lucide-react"; // Import Send icon
 import { motion } from "framer-motion";
 import Button from "@/components/ui/Button";
+import PostModal from "@/components/homepage/PostModal";
 
 export default function HomePage() {
+  const [isModalOpen, setIsModalOpen] = useState(false); // State to control the modal
+
   const communities = [
     { name: "IT & Support Community", members: "1k Members" },
     { name: "IT & Support Community", members: "1k Members" },
@@ -14,22 +18,28 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* Main Content */}
-      <div className="lg:col-span-2 space-y-4">
-        {/* Write Something Box */}
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-blue-400 flex items-center justify-center text-white font-semibold text-sm">
-              C
+    <>
+      {/* Modal Component */}
+      <PostModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+
+      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Content */}
+        <div className="lg:col-span-2 space-y-4">
+          {/* Write Something Box - MODIFIED */}
+          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-blue-400 flex items-center justify-center text-white font-semibold text-sm">
+                C
+              </div>
+              {/* This is now a clickable div to open the modal */}
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="flex-1 bg-gray-50 rounded-full px-4 py-2.5 text-left text-sm text-gray-400 hover:bg-gray-100 transition-all focus:outline-none focus:ring-2 focus:ring-[#5858FA]/20"
+              >
+                Write Something
+              </button>
             </div>
-            <input
-              type="text"
-              placeholder="Write Something"
-              className="flex-1 bg-gray-50 rounded-full px-4 py-2.5 text-sm text-gray-600 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#5858FA]/20 transition-all"
-            />
           </div>
-        </div>
 
         {/* Post Card */}
         <motion.div
@@ -71,7 +81,7 @@ export default function HomePage() {
           <div className="px-4 pb-4">
             <p className="text-sm text-gray-700 leading-relaxed mb-4">
               Prepare to be dazzled by our latest collection! From trendy
-              fashion to must-have gadgets, we've got something for everyone.
+              fashion to must-have gadgets, we&apos;ve got something for everyone.
             </p>
 
             {/* Post Image - Laptop dengan gradient background */}
@@ -161,5 +171,6 @@ export default function HomePage() {
         </div>
       </div>
     </div>
+    </>
   );
 }

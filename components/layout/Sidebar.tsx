@@ -25,7 +25,7 @@ export default function Sidebar() {
             alt="Lokalin"
             width={32}
             height={32}
-            className="w-20 h-8 rounded-lg"
+            className="w-27 h-8 rounded-lg"
           />
         </div>
       </div>
