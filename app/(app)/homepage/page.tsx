@@ -1,14 +1,19 @@
 "use client";
 
-import { useState } from "react"; // Import useState
 import Image from "next/image";
-import { Heart, MoreHorizontal, Send } from "lucide-react"; // Import Send icon
+import { Heart, MoreHorizontal, MessageCircle } from "lucide-react";
 import { motion } from "framer-motion";
+import { useState } from "react";
 import Button from "@/components/ui/Button";
 import PostModal from "@/components/homepage/PostModal";
 
 export default function HomePage() {
   const [isModalOpen, setIsModalOpen] = useState(false); // State to control the modal
+  const [isLiked, setIsLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(100000);
+  const [comment, setComment] = useState("");
+  const [comments, setComments] = useState<string[]>([]);
+  const [showComments, setShowComments] = useState(false);
 
   const communities = [
     { name: "IT & Support Community", members: "1k Members" },
@@ -16,6 +21,18 @@ export default function HomePage() {
     { name: "IT & Support Community", members: "1k Members" },
     { name: "IT & Support Community", members: "1k Members" },
   ];
+
+  const handleLike = () => {
+    setIsLiked(!isLiked);
+    setLikeCount((prev) => (isLiked ? prev - 1 : prev + 1));
+  };
+
+  const handleComment = () => {
+    if (comment.trim()) {
+      setComments((prev) => [...prev, comment]);
+      setComment("");
+    }
+  };
 
   return (
     <>
@@ -136,11 +153,70 @@ export default function HomePage() {
           </div>
 
           {/* Post Footer */}
-          <div className="px-4 pb-4 flex items-center gap-2">
-            <button className="flex items-center gap-1.5 text-gray-500 hover:text-red-500 transition-colors">
-              <Heart size={18} />
-              <span className="text-sm font-medium">100k Likes</span>
-            </button>
+          <div className="px-4 pb-4 space-y-3">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={handleLike}
+                className={`flex items-center gap-1.5 transition-colors ${
+                  isLiked ? "text-red-500" : "text-gray-500 hover:text-red-500"
+                }`}
+              >
+                <Heart size={18} fill={isLiked ? "currentColor" : "none"} />
+                <span className="text-sm font-medium">
+                  {likeCount.toLocaleString()} Likes
+                </span>
+              </button>
+              <button
+                onClick={() => setShowComments(!showComments)}
+                className="flex items-center gap-1.5 text-gray-500 hover:text-blue-500 transition-colors"
+              >
+                <MessageCircle size={18} />
+                <span className="text-sm font-medium">
+                  {comments.length} Comments
+                </span>
+              </button>
+            </div>
+
+            {/* Comment Section */}
+            {showComments && (
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-blue-400 flex items-center justify-center text-white font-semibold text-xs">
+                    C
+                  </div>
+                  <input
+                    type="text"
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    placeholder="Write a comment..."
+                    className="flex-1 bg-gray-50 rounded-full px-4 py-2 text-sm text-gray-600 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#5858FA]/20 transition-all"
+                    onKeyPress={(e) => e.key === "Enter" && handleComment()}
+                  />
+                  <button
+                    onClick={handleComment}
+                    className="bg-[#5858FA] text-white px-4 py-2 rounded-full text-sm font-medium hover:opacity-90 transition"
+                  >
+                    Post
+                  </button>
+                </div>
+
+                {/* Comments List */}
+                {comments.length > 0 && (
+                  <div className="space-y-2">
+                    {comments.map((cmt, index) => (
+                      <div key={index} className="flex gap-2">
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-400 to-blue-400 flex items-center justify-center text-white font-semibold text-xs">
+                          C
+                        </div>
+                        <div className="bg-gray-50 rounded-lg px-3 py-2 flex-1">
+                          <p className="text-sm text-gray-700">{cmt}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </motion.div>
       </div>
