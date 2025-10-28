@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Users, Calendar, MoreHorizontal } from "lucide-react";
+import { Home, Users, Calendar, Flag } from "lucide-react";
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -11,8 +11,8 @@ export default function Sidebar() {
   const menuItems = [
     { icon: Home, label: "Home", href: "/homepage" },
     { icon: Users, label: "Community", href: "/community" },
-    { icon: Calendar, label: "Event", href: "/event" },
-    { icon: MoreHorizontal, label: "Calender", href: "/calender" },
+    { icon: Flag, label: "Event", href: "/event" },
+    { icon: Calendar, label: "Calender", href: "/calender" },
   ];
 
   return (

@@ -4,7 +4,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
-import { X, Image as ImageIcon, ChevronDown } from "lucide-react";
+import { X, ImageIcon, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Button from "@/components/ui/Button";
 
@@ -24,20 +24,44 @@ const communities = [
 export default function CreatePostModal({ isOpen, onClose }: CreatePostModalProps) {
   const [postContent, setPostContent] = useState("");
   const [selectedCommunity, setSelectedCommunity] = useState("");
-  const [attachedImage, setAttachedImage] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // NEW: State to manage dropdown visibility
+  const [attachedImages, setAttachedImages] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  // const [attachedImage, setAttachedImage] = useState<File | null>(null);
+  // const [imagePreview, setImagePreview] = useState<string | null>(null);
+  // const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  // const dropdownRef = useRef<HTMLDivElement>(null);
 
   const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setAttachedImage(file);
-      setImagePreview(URL.createObjectURL(file));
+    const files = event.target.files;
+    if (files) {
+      const newFiles = Array.from(files);
+      const newPreviews = newFiles.map(file => URL.createObjectURL(file));
+
+      // Append new files and previews to the existing arrays
+      setAttachedImages(prevImages => [...prevImages, ...newFiles]);
+      setImagePreviews(prevPreviews => [...prevPreviews, ...newPreviews]);
     }
+    // Reset file input to allow selecting the same file(s) again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleDiscardImage = (indexToRemove: number) => {
+    // Revoke the object URL to prevent memory leaks
+    URL.revokeObjectURL(imagePreviews[indexToRemove]);
+
+    // Filter out the image and its preview from the state arrays
+    setAttachedImages(prevImages => prevImages.filter((_, index) => index !== indexToRemove));
+    setImagePreviews(prevPreviews => prevPreviews.filter((_, index) => index !== indexToRemove));
   };
 
   const handlePost = () => {
@@ -48,12 +72,12 @@ export default function CreatePostModal({ isOpen, onClose }: CreatePostModalProp
     console.log({
       community: selectedCommunity,
       content: postContent,
-      image: attachedImage,
+      image: attachedImages,
     });
     onClose(); // This now also resets the dropdown state via the main modal closing
   };
 
-  // NEW: Effect to handle clicks outside of the dropdown to close it
+  // Clicks outside of the dropdown to close it
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -73,12 +97,14 @@ export default function CreatePostModal({ isOpen, onClose }: CreatePostModalProp
     if (!isOpen) {
       setPostContent("");
       setSelectedCommunity("");
-      setAttachedImage(null);
-      setImagePreview(null);
+      setAttachedImages([]);
+      imagePreviews.forEach(url => URL.revokeObjectURL(url));
+      setImagePreviews([]);
       setIsDropdownOpen(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
-
+    
   const selectedCommunityLabel = communities.find(c => c.value === selectedCommunity)?.label || "Select Community";
   const isPostButtonDisabled = !postContent.trim() || !selectedCommunity;
 
@@ -167,9 +193,20 @@ export default function CreatePostModal({ isOpen, onClose }: CreatePostModalProp
                 className="w-full h-60 resize-none text-gray-700 placeholder:text-gray-400 border border-gray-200 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-colors"
                 autoFocus
               />
-              {imagePreview && (
-                <div className="mt-4">
-                  <Image src={imagePreview} alt="Image preview" width={100} height={100} className="rounded-lg object-cover" />
+              {imagePreviews.length > 0 && (
+                <div className="mt-4 flex flex-wrap gap-3">
+                  {imagePreviews.map((preview, index) => (
+                    <div key={index} className="relative w-24 h-24"> {/* Sizing for each preview */}
+                      <Image src={preview} alt={`Image preview ${index + 1}`} layout="fill" className="rounded-lg object-cover" />
+                      <button
+                        onClick={() => handleDiscardImage(index)}
+                        className="absolute -top-2 -right-2 bg-gray-800/80 text-white rounded-full p-1 hover:bg-gray-900 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500"
+                        aria-label={`Discard image ${index + 1}`}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -179,8 +216,8 @@ export default function CreatePostModal({ isOpen, onClose }: CreatePostModalProp
               <button onClick={() => fileInputRef.current?.click()} className="text-gray-400 hover:text-gray-600">
                 <ImageIcon size={24} />
               </button>
-              <input type="file" ref={fileInputRef} onChange={handleImageChange} accept="image/*" className="hidden"/>
-
+              <input type="file" ref={fileInputRef} onChange={handleImageChange} accept="image/*" className="hidden" multiple />
+              
               <Button 
                 onClick={handlePost}
                 disabled={isPostButtonDisabled}
