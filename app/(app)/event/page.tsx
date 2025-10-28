@@ -1,63 +1,35 @@
-"use client"; // Diperlukan untuk framer-motion jika Anda ingin menambahkannya
+// Lokasi file: app/(app)/event/page.tsx
 
-import Link from 'next/link'; // Diperlukan oleh komponen Button
+// 1. "use client"; DIHAPUS
+// 2. Impor 'Link' untuk navigasi Next.js
+import Link from 'next/link'; 
 import { Users, Calendar } from 'lucide-react';
-// Path diubah menjadi huruf kecil 'button.tsx'
 import Button from '@/components/ui/Button'; 
-// import { motion } from "framer-motion"; // Aktifkan jika ingin animasi
+// 3. Impor data terpusat dari file data.tsx (atau .ts)
+import { allEvents, communities } from './data';
 
-// --- Data ---
-const communities = [
-  { name: "IT & Support Community", members: "1k Members" },
-  { name: "UI/UX Designers", members: "800 Members" },
-  { name: "Valorant Players", members: "2.5k Members" },
-  { name: "Next.js Developers", members: "1.2k Members" }
-];
-
-const events = [
-  {
-    id: 1,
-    slug: 'giveaway-it-support',
-    image: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=800&h=400&fit=crop',
-    title: 'Giveaway',
-    community: 'IT Support',
-    date: '21 Apr 2025',
-    description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam maximus tincidunt velit...'
-  },
-  {
-    id: 2,
-    slug: 'giveaway-it-support-2',
-    image: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=800&h=400&fit=crop',
-    title: 'Giveaway 2',
-    community: 'IT Support',
-    date: '22 Apr 2025',
-    description: 'Quisque nunc sem, efficitur ac ante et, tristique faucibus orci. Class aptent taciti...'
-  },
-  // ... tambahkan 4 event lagi jika Anda mau
-];
-// ---------------------------------
+// 4. const communities = [...] DIHAPUS
+// 5. const events = [...] DIHAPUS
 
 export default function EventPage() {
   return (
-    // 1. Menggunakan LAYOUT UTAMA DARI HOMEPAGE
-    // (Padding ditambahkan agar tidak terlalu menempel)
     <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 p-4 md:p-8">
       
-      {/* 2. KONTEN UTAMA (2 KOLOM) */}
+      {/* KONTEN UTAMA (2 KOLOM) */}
       <div className="lg:col-span-2 space-y-4">
         
-        {/* Judul Halaman */}
-        <h1 className="text-3xl font-bold text-gray-900">Event</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Event</h1>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {events.map((event) => (
-            // Anda bisa membungkus ini dengan <motion.div> seperti di HomePage jika mau
-            <div 
+          {/* 6. Menggunakan 'allEvents' yang diimpor */}
+          {allEvents.map((event) => (
+            
+            // 7. Menggunakan komponen <Link> dari Next.js, bukan <a>
+            <Link 
               key={event.id} 
-              // 3. Menggunakan STYLE KARTU DARI HOMEPAGE
-              className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+              href={`/event/${event.slug}`}
+              className="block bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-1"
             >
-              {/* Komponen <Image> diganti dengan <img> standar */}
               <img 
                 src={event.image} 
                 alt={event.title}
@@ -66,7 +38,6 @@ export default function EventPage() {
               <div className="p-5 flex flex-col h-full">
                 <h3 className="font-bold text-lg mb-3 text-gray-900">{event.title}</h3>
                 
-                {/* Info (Komunitas & Tanggal) dibuat berdampingan */}
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center space-x-2">
                     <Users size={18} className="text-[#5858FA]" />
@@ -82,24 +53,19 @@ export default function EventPage() {
                   {event.description}
                 </p>
                 
-                <Button 
-                  href={`/event/${event.slug}`}
-                  variant="primary"
-                  className="w-full mt-auto" // mt-auto agar tombol di bawah
-                >
-                  View
-                </Button>
+                <div className="mt-auto"></div> 
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       </div>
 
-      {/* 4. SIDEBAR KANAN (1 KOLOM) - Persis seperti HOMEPAGE */}
+      {/* SIDEBAR KANAN (1 KOLOM) */}
       <div className="lg:col-span-1">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sticky top-20">
           <h3 className="font-semibold text-gray-900 mb-4">My Community</h3>
           <div className="space-y-3">
+            {/* 8. Menggunakan 'communities' yang diimpor */}
             {communities.map((community, index) => (
               <div
                 key={index}
@@ -124,4 +90,3 @@ export default function EventPage() {
     </div>
   );
 }
-
