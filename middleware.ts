@@ -20,17 +20,17 @@ export function middleware(req: NextRequest) {
   // Misal: cek auth token
   const isAuthenticated = req.cookies.get("token");
 
-  if (
-    !isAuthenticated &&
-    pathname !== "/login" &&
-    pathname !== "/register" &&
-    pathname !== "/homepage" &&
-    !pathname.startsWith("/community") &&
-    !pathname.startsWith("/calender") &&
-    !pathname.startsWith("/event")
-  )   {
-    return NextResponse.redirect(new URL("/login", req.url));
-  }
+  // if (
+  //   !isAuthenticated &&
+  //   pathname !== "/login" &&
+  //   pathname !== "/register" &&
+  //   pathname !== "/homepage" &&
+  //   !pathname.startsWith("/community") &&
+  //   !pathname.startsWith("/calender") &&
+  //   !pathname.startsWith("/event")
+  // )   {
+  //   return NextResponse.redirect(new URL("/login", req.url));
+  // }
 
 
   return NextResponse.next();

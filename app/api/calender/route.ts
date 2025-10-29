@@ -1,30 +1,39 @@
-import dbConnect from "@/lib/dbConnect";
-import Calendar from "@/models/Calender";
-import jwt from "jsonwebtoken";
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import dbConnect from "@/lib/dbConnect";
+import SavedEvent from "@/models/SavedEvent";
+import { getUserFromToken } from "@/lib/auth";
 
-export async function POST(req: Request) {
-  await dbConnect();
-  const token = (await cookies()).get("token")?.value;
-  if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export async function GET(req: Request) {
+  try {
+    await dbConnect();
 
-  const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
-  const { event_id, status } = await req.json();
+    const user = await getUserFromToken(req);
+    if (!user)
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
-  const calendar = await Calendar.create({
-    event_id,
-    user_id: decoded.id,
-    status,
-  });
+    // Ambil semua event yang user simpan
+    const savedEvents = await SavedEvent.find({ userId: user._id })
+      .populate({
+        path: "eventId",
+        select: "title desc startDate endDate image communityId createdBy",
+      })
+      .lean();
 
-  return NextResponse.json(calendar, { status: 201 });
-}
+    // Format untuk UI kalender
+    const events = savedEvents.map((item) => ({
+      id: item.eventId._id,
+      title: item.eventId.title,
+      description: item.eventId.desc,
+      start: item.eventId.startDate,
+      end: item.eventId.endDate,
+      image: item.eventId.image,
+      communityId: item.eventId.communityId,
+      createdBy: item.eventId.createdBy,
+    }));
 
-export async function GET() {
-  await dbConnect();
-  const data = await Calendar.find()
-    .populate("event_id", "title start_date")
-    .populate("user_id", "username email");
-  return NextResponse.json(data);
+    return NextResponse.json({ events });
+  } catch (err) {
+    console.error("Calendar fetch error:", err);
+    return NextResponse.json({ message: "Failed to load calendar" }, { status: 500 });
+  }
 }

@@ -23,14 +23,14 @@ export async function POST(req: Request) {
     }
 
     const token = jwt.sign({ id: user._id, email: user.email }, JWT_SECRET, {
-      expiresIn: "7d",
+      expiresIn: "1d",
     });
 
-    const res = NextResponse.json({ message: "Login berhasil" });
+    const res = NextResponse.json({ message: "Login berhasil", user: { id: user._id, name: user.name, email: user.email } , token });
     res.cookies.set("token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      maxAge: 60 * 60 * 24 * 7, // 7 hari
+      maxAge: 60 * 60 * 24, // 1 hari
       path: "/",
     });
 

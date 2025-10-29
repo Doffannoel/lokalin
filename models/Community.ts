@@ -6,6 +6,7 @@ export interface ICommunity extends Document {
   image?: string;
   totalUsers: number;
   createdBy: mongoose.Types.ObjectId;
+  members: mongoose.Types.ObjectId[];
   createdAt: Date;
 }
 
@@ -15,6 +16,7 @@ const communitySchema = new Schema<ICommunity>({
   image: { type: String },
   totalUsers: { type: Number, default: 1 },
   createdBy: { type: Schema.Types.ObjectId, ref: "User" },
+  members: [{ type: Schema.Types.ObjectId, ref: "User" }], 
   createdAt: { type: Date, default: Date.now },
 });
 
