@@ -6,7 +6,7 @@ import { getUserFromToken } from "@/lib/auth";
 // ✅ CREATE COMMUNITY
 export async function POST(req: Request) {
   await dbConnect();
-  const user = await getUserFromToken(req);
+  const user = await getUserFromToken();
   if (!user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
   const { title, desc, image } = await req.json();
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
 // ✅ GET ALL COMMUNITY (FILTERABLE)
 export async function GET(req: Request) {
   await dbConnect();
-  const user = await getUserFromToken(req);
+  const user = await getUserFromToken();
   const { searchParams } = new URL(req.url);
   const filter = searchParams.get("filter"); // all | joined | unjoined
 

@@ -1,13 +1,13 @@
+import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 import User from "@/models/Users";
 import dbConnect from "@/lib/dbConnect";
 
 const JWT_SECRET = process.env.JWT_SECRET!;
 
-export async function getUserFromToken(req: Request) {
+export async function getUserFromToken() {
   await dbConnect();
-  const cookieHeader = req.headers.get("cookie");
-  const token = cookieHeader?.split("token=")[1];
+  const token = cookies().get("token")?.value;
 
   if (!token) return null;
 

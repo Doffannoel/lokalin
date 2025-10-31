@@ -1,11 +1,11 @@
-// components/community/CommunityCard.tsx
 "use client";
 import Image from "next/image";
 import Link from "next/link";
 import React, { useState } from "react";
+import { useAuth } from "@/app/contexts/AuthContext";
 
 type Props = {
-  id?: string;
+  id: string;
   slug?: string;
   title: string;
   image: string;
@@ -13,10 +13,12 @@ type Props = {
   extraMembers: number;
   freq: string;
   description: string;
-  mine?: boolean; // <-- new prop to decide button behavior
+  mine?: boolean;
+  onUpdate?: () => void;
 };
 
 export default function CommunityCard({
+  id,
   slug,
   title,
   image,
@@ -25,13 +27,40 @@ export default function CommunityCard({
   freq,
   description,
   mine = false,
+  onUpdate,
 }: Props) {
-  const [joined, setJoined] = useState(false);
+  const [joined, setJoined] = useState(mine);
+  const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
 
-  function handleJoin(e: React.MouseEvent) {
+  async function handleJoin(e: React.MouseEvent) {
     e.preventDefault();
-    setJoined((v) => !v);
-    // TODO: panggil API join/leave di sini jika perlu
+    if (!user) {
+      alert("Please login first");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/community/${id}/join`, {
+        method: "POST",
+        credentials: "include",
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setJoined(true);
+        if (onUpdate) onUpdate();
+      } else {
+        alert(data.message || "Failed to join community");
+      }
+    } catch (error) {
+      console.error("Error joining community:", error);
+      alert("An error occurred");
+    } finally {
+      setLoading(false);
+    }
   }
 
   const cardLink = slug ? `/community/${slug}` : undefined;
@@ -54,11 +83,16 @@ export default function CommunityCard({
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
             {cardLink ? (
-              <Link href={cardLink} className="text-sm font-semibold text-[#1e1e9b] hover:underline truncate">
+              <Link
+                href={cardLink}
+                className="text-sm font-semibold text-[#1e1e9b] hover:underline truncate"
+              >
                 {title}
               </Link>
             ) : (
-              <h3 className="text-sm font-semibold text-[#1e1e9b] truncate">{title}</h3>
+              <h3 className="text-sm font-semibold text-[#1e1e9b] truncate">
+                {title}
+              </h3>
             )}
 
             <div className="flex items-center gap-3 mt-3">
@@ -80,7 +114,13 @@ export default function CommunityCard({
                 ))}
 
                 <div className="ml-2 text-xs text-gray-500 flex items-center gap-1">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="#5B5BD8" aria-hidden>
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="#5B5BD8"
+                    aria-hidden
+                  >
                     <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm8 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5C21 14.17 16.33 13 14 13z" />
                   </svg>
                   <span className="text-xs text-gray-600">+{extraMembers}</span>
@@ -91,10 +131,9 @@ export default function CommunityCard({
             </div>
           </div>
 
-          {/* Button: kalau mine -> View (link). kalau bukan -> Join toggle */}
+          {/* Button */}
           <div className="flex-shrink-0 mt-3 md:mt-0">
             {mine ? (
-              // Owner's community -> show View link
               <Link
                 href={cardLink ?? "#"}
                 className="inline-flex items-center px-4 py-2 rounded-lg bg-gradient-to-br from-[#5B5BD8] to-[#7A65FF] text-white font-medium shadow focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[#5B5BD8]/30"
@@ -103,18 +142,18 @@ export default function CommunityCard({
                 View
               </Link>
             ) : (
-              // Not owner -> show Join toggle
               <button
                 onClick={handleJoin}
                 type="button"
-                className={`inline-flex items-center px-4 py-2 rounded-lg text-white font-medium shadow focus:outline-none focus:ring-2 focus:ring-offset-1 ${
+                disabled={loading || joined}
+                className={`inline-flex items-center px-4 py-2 rounded-lg text-white font-medium shadow focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50 ${
                   joined
-                    ? "bg-gray-300 text-gray-700 hover:bg-gray-200"
+                    ? "bg-gray-300 text-gray-700"
                     : "bg-gradient-to-br from-[#5B5BD8] to-[#7A65FF] hover:brightness-95"
                 }`}
                 aria-pressed={joined}
               >
-                {joined ? "Joined" : "Join"}
+                {loading ? "..." : joined ? "Joined" : "Join"}
               </button>
             )}
           </div>

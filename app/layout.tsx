@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AnimatePresence } from "framer-motion";
+import { AuthProvider } from "./contexts/AuthContext";
 
 export const metadata: Metadata = {
   title: { default: "Localin", template: "%s · Localin" },
@@ -20,11 +21,10 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      {/* Pastikan putih, tidak pakai class 'dark' di <html> */}
       <body className="min-h-screen antialiased">
-        <AnimatePresence mode="wait">
-          {children}
-        </AnimatePresence>
+        <AuthProvider>
+          <AnimatePresence mode="wait">{children}</AnimatePresence>
+        </AuthProvider>
       </body>
     </html>
   );

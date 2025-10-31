@@ -1,52 +1,72 @@
 "use client";
 
-import { useState } from 'react';
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  ChevronDown, 
-  ChevronUp, 
-  MoreVertical 
-} from 'lucide-react';
+import { useState, useEffect } from "react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  ChevronUp,
+  MoreVertical,
+} from "lucide-react";
 
-// --- Definisi Tipe ---
-// Tipe untuk data event
+import { useAuth } from "@/app/contexts/AuthContext";
+
+type SavedEvent = {
+  _id: string;
+  eventId: {
+    _id: string;
+    title: string;
+    desc: string;
+    startDate: string;
+    endDate: string;
+    image?: string;
+    communityId: {
+      _id: string;
+      title: string;
+    };
+  };
+};
+
 type Event = {
-  id: number;
+  id: string;
   day: number;
   time: string;
   title: string;
   community: string;
-  color: 'purple' | 'orange' | 'pink';
+  color: "purple" | "orange" | "pink";
   description: string;
+  fullStartDate: Date;
 };
 
-// Tipe untuk props MiniCalendar
 interface MiniCalendarProps {
   selectedDate: Date;
   onDateChange: (date: Date) => void;
   currentMonth: Date;
   onMonthChange: (date: Date) => void;
+  eventDays: number[];
 }
 
-// Tipe untuk props EventCard
 interface EventCardProps {
   event: Event;
   isExpanded: boolean;
   onToggle: () => void;
 }
 
-// --- Komponen Mini Kalender (Sidebar Kanan) ---
-const MiniCalendar = ({ selectedDate, onDateChange, currentMonth, onMonthChange }: MiniCalendarProps) => {
-  
-  const daysOfWeek = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const MiniCalendar = ({
+  selectedDate,
+  onDateChange,
+  currentMonth,
+  onMonthChange,
+  eventDays,
+}: MiniCalendarProps) => {
+  const daysOfWeek = ["S", "M", "T", "W", "T", "F", "S"];
 
   const getDaysInMonth = (year: number, month: number): number => {
     return new Date(year, month + 1, 0).getDate();
   };
 
   const getFirstDayOfMonth = (year: number, month: number): number => {
-    return new Date(year, month, 1).getDay(); // 0 = Sunday
+    return new Date(year, month, 1).getDay();
   };
 
   const year = currentMonth.getFullYear();
@@ -54,7 +74,7 @@ const MiniCalendar = ({ selectedDate, onDateChange, currentMonth, onMonthChange 
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfMonth(year, month);
 
-  const blanks: (null)[] = Array(firstDay).fill(null);
+  const blanks: null[] = Array(firstDay).fill(null);
   const days: number[] = Array.from({ length: daysInMonth }, (_, i) => i + 1);
   const allDays: (number | null)[] = [...blanks, ...days];
 
@@ -65,55 +85,75 @@ const MiniCalendar = ({ selectedDate, onDateChange, currentMonth, onMonthChange 
   const handleNextMonth = () => {
     onMonthChange(new Date(year, month + 1, 1));
   };
-  
+
   const handleDateClick = (day: number | null) => {
     if (!day) return;
     onDateChange(new Date(year, month, day));
   };
 
   const isSelected = (day: number | null): boolean => {
-    return !!day &&
-           selectedDate.getDate() === day &&
-           selectedDate.getMonth() === month &&
-           selectedDate.getFullYear() === year;
+    return (
+      !!day &&
+      selectedDate.getDate() === day &&
+      selectedDate.getMonth() === month &&
+      selectedDate.getFullYear() === year
+    );
+  };
+
+  const hasEvent = (day: number | null): boolean => {
+    return !!day && eventDays.includes(day);
   };
 
   return (
     <div className="bg-blue-50/50 rounded-xl p-4 sticky top-24 border border-blue-100">
-      {/* Header Navigasi Bulan */}
       <div className="flex items-center justify-between mb-4">
         <span className="font-semibold text-gray-800">
-          {currentMonth.toLocaleString('id-ID', { month: 'long', year: 'numeric' })}
+          {currentMonth.toLocaleString("id-ID", {
+            month: "long",
+            year: "numeric",
+          })}
         </span>
         <div className="flex items-center gap-2">
-          <button onClick={handlePrevMonth} className="text-gray-500 hover:text-gray-800">
+          <button
+            onClick={handlePrevMonth}
+            className="text-gray-500 hover:text-gray-800"
+          >
             <ChevronLeft size={20} />
           </button>
-          <button onClick={handleNextMonth} className="text-gray-500 hover:text-gray-800">
+          <button
+            onClick={handleNextMonth}
+            className="text-gray-500 hover:text-gray-800"
+          >
             <ChevronRight size={20} />
           </button>
         </div>
       </div>
-      
-      {/* Grid Hari */}
+
       <div className="grid grid-cols-7 gap-1 text-center">
-        {/* DIPERBAIKI: Menambahkan 'index' ke 'key' untuk menghindari duplikasi */}
         {daysOfWeek.map((day: string, index: number) => (
-          <div key={`${day}-${index}`} className="text-xs font-medium text-gray-500 mb-2">{day}</div>
+          <div
+            key={`${day}-${index}`}
+            className="text-xs font-medium text-gray-500 mb-2"
+          >
+            {day}
+          </div>
         ))}
-        
+
         {allDays.map((day: number | null, index: number) => (
           <button
             key={index}
             onClick={() => handleDateClick(day)}
             className={`
-              w-8 h-8 flex items-center justify-center rounded-full text-sm
-              ${day ? 'hover:bg-blue-100' : 'cursor-default'}
-              ${isSelected(day) ? 'bg-[#5858FA] text-white' : 'text-gray-700'}
+              w-8 h-8 flex items-center justify-center rounded-full text-sm relative
+              ${day ? "hover:bg-blue-100" : "cursor-default"}
+              ${isSelected(day) ? "bg-[#5858FA] text-white" : "text-gray-700"}
             `}
             disabled={!day}
           >
             {day}
+            {hasEvent(day) && !isSelected(day) && (
+              <span className="absolute bottom-0.5 w-1 h-1 bg-[#5858FA] rounded-full"></span>
+            )}
           </button>
         ))}
       </div>
@@ -121,66 +161,57 @@ const MiniCalendar = ({ selectedDate, onDateChange, currentMonth, onMonthChange 
   );
 };
 
-
-// --- Komponen Kartu Event ---
 const EventCard = ({ event, isExpanded, onToggle }: EventCardProps) => {
   const colorClasses = {
     purple: {
-      bg: 'bg-purple-100/60',
-      text: 'text-purple-700',
-      border: 'border-purple-200'
+      bg: "bg-purple-100/60",
+      text: "text-purple-700",
+      border: "border-purple-200",
     },
     orange: {
-      bg: 'bg-orange-100/60',
-      text: 'text-orange-700',
-      border: 'border-orange-200'
+      bg: "bg-orange-100/60",
+      text: "text-orange-700",
+      border: "border-orange-200",
     },
     pink: {
-      bg: 'bg-pink-100/60',
-      text: 'text-pink-700',
-      border: 'border-pink-200'
+      bg: "bg-pink-100/60",
+      text: "text-pink-700",
+      border: "border-pink-200",
     },
   };
 
   const colors = colorClasses[event.color] || colorClasses.purple;
 
-  // Memisahkan waktu (cth: "09.30-10.30" dan "WIB")
-  const timeParts = event.time.split(' ');
-  const time = timeParts[0] || '';
-  const period = timeParts[1] || '';
-
-  // Pengecualian untuk event 'Community Gathering' yang diperluas
-  // Di desain, event ini tidak menampilkan waktu di header saat diperluas
-  const showTimeInHeader = !(isExpanded && event.id === 2901);
+  const timeParts = event.time.split(" ");
+  const time = timeParts[0] || "";
+  const period = timeParts[1] || "";
 
   return (
-    <div className={`rounded-xl border ${colors.border} ${isExpanded ? 'shadow-md' : 'shadow-sm'}`}>
-      {/* Bagian Header Kartu (Bisa diklik) */}
-      <div 
+    <div
+      className={`rounded-xl border ${colors.border} ${
+        isExpanded ? "shadow-md" : "shadow-sm"
+      }`}
+    >
+      <div
         className={`p-4 flex items-center justify-between cursor-pointer ${colors.bg}`}
         onClick={onToggle}
       >
         <div className="flex items-center gap-4 flex-1 min-w-0">
-          
-          {/* DIPERBAIKI: Styling Waktu ditumpuk agar sesuai desain */}
-          {showTimeInHeader && (
-            <div className="flex-shrink-0 text-left w-24">
-              <span className="text-sm font-semibold text-gray-700 block">
-                {time}
-              </span>
-              <span className="text-xs text-gray-500 block">
-                {period}
-              </span>
-            </div>
-          )}
+          <div className="flex-shrink-0 text-left w-24">
+            <span className="text-sm font-semibold text-gray-700 block">
+              {time}
+            </span>
+            <span className="text-xs text-gray-500 block">{period}</span>
+          </div>
 
-          {/* DIPERBAIKI: Styling Judul & Komunitas */}
           <div className="flex-1 min-w-0">
-            <span className={`font-semibold ${colors.text} truncate`}>{event.title}</span>
-            {/* Tampilkan komunitas jika tidak di header 'Community Gathering' */}
-            {event.id !== 2901 && (
-              <span className="text-sm text-gray-500 hidden md:inline truncate"> - {event.community}</span>
-            )}
+            <span className={`font-semibold ${colors.text} truncate`}>
+              {event.title}
+            </span>
+            <span className="text-sm text-gray-500 hidden md:inline truncate">
+              {" "}
+              - {event.community}
+            </span>
           </div>
         </div>
         <button className="text-gray-500 hover:text-gray-800 ml-4">
@@ -188,18 +219,11 @@ const EventCard = ({ event, isExpanded, onToggle }: EventCardProps) => {
         </button>
       </div>
 
-      {/* Bagian Detail (Bisa expand) */}
       {isExpanded && (
         <div className="p-4 bg-white rounded-b-xl">
           <div className="flex justify-between items-start">
             <div>
-              {/* Tampilkan komunitas di sini untuk 'Community Gathering' */}
-              {event.id === 2901 && (
-                <p className="font-medium text-gray-700 mb-2">{event.community}</p>
-              )}
-              <p className="text-sm text-gray-500">
-                {event.description}
-              </p>
+              <p className="text-sm text-gray-500">{event.description}</p>
             </div>
             <button className="text-gray-400 hover:text-gray-700">
               <MoreVertical size={20} />
@@ -211,115 +235,170 @@ const EventCard = ({ event, isExpanded, onToggle }: EventCardProps) => {
   );
 };
 
-
-// --- Komponen Utama Halaman Kalender ---
 export default function CalendarPage() {
-  const [selectedDate, setSelectedDate] = useState(new Date(2024, 3, 19));
-  const [currentMonth, setCurrentMonth] = useState(new Date(2024, 3, 1));
-  const [expandedEventId, setExpandedEventId] = useState<number | null>(2901);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
+  const [savedEvents, setSavedEvents] = useState<SavedEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
-  // Data event dummy (diberi tipe Event[])
-  const events: Event[] = [
-    { 
-      id: 2101, 
-      day: 21, 
-      time: '09.30-10.30 WIB', 
-      title: 'Giveaway', 
-      community: 'IT Support',
-      color: 'purple',
-      description: 'Deskripsi lengkap untuk Giveaway IT Support.'
-    },
-    { 
-      id: 2601, 
-      day: 26, 
-      time: '12.00-13.00 WIB', 
-      title: 'KAI BORTHDAY TOMORROW', 
-      community: 'EXO-L',
-      color: 'orange',
-      description: 'Deskripsi lengkap untuk Ulang Tahun KAI.'
-    },
-    { 
-      id: 2602, 
-      day: 26, 
-      time: '20.00-22.00 WIB', 
-      title: 'Seminar Memandikan Kucing', 
-      community: 'Cat Lovers',
-      color: 'pink',
-      description: 'Deskripsi lengkap Seminar Memandikan Kucing.'
-    },
-    { 
-      id: 2901, 
-      day: 29, 
-      time: '10.00-15.00 WIB', 
-      title: 'Community Gathering - PHP Lovers', 
-      community: '(Community Name)',
-      color: 'orange',
-      description: '10.00-15.00 WIB, Monday, April 29' 
-    },
-  ];
+  useEffect(() => {
+    if (user) {
+      fetchSavedEvents();
+    }
+  }, [user]);
 
-  // Data dummy untuk grup hari (diberi tipe)
-  const dayGroups: { day: number; dateStr: string }[] = [
-    { day: 19, dateStr: 'APR, FRI' },
-    { day: 21, dateStr: 'APR, SUN' },
-    { day: 26, dateStr: 'APR, FRI' },
-    { day: 29, dateStr: 'APR, MON' },
-    { day: 30, dateStr: 'APR, TUE' },
-  ];
-
-  const handleExpandToggle = (id: number) => {
-    setExpandedEventId(prevId => (prevId === id ? null : id));
+  const fetchSavedEvents = async () => {
+    try {
+      const res = await fetch("/api/calender", {
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (data.events) {
+        setSavedEvents(data.events);
+      }
+    } catch (error) {
+      console.error("Error fetching saved events:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  return (
-    // Layout utama (2 kolom: Konten & Mini Kalender)
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-4 md:p-8">
+  const getColorForIndex = (index: number): "purple" | "orange" | "pink" => {
+    const colors: ("purple" | "orange" | "pink")[] = [
+      "purple",
+      "orange",
+      "pink",
+    ];
+    return colors[index % colors.length];
+  };
 
-      {/* Kolom Konten Utama (Daftar Event) */}
-      <div className="lg:col-span-2">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Calender</h1>
+  const formatTime = (startDate: string, endDate: string) => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
 
-        <div className="space-y-6">
-          {dayGroups.map(group => {
-            // Filter event yang sesuai untuk hari ini
-            const eventsForDay = events.filter(e => e.day === group.day);
-            
-            return (
-              <div key={group.day}>
-                {/* Header Hari */}
-                <div className={`flex items-center gap-4 mb-4 ${eventsForDay.length === 0 ? 'pb-4 border-b border-gray-200' : ''}`}>
-                  <span className="text-3xl font-bold text-gray-800 w-10">{group.day}</span>
-                  <span className="font-semibold text-gray-500">{group.dateStr}</span>
-                </div>
+    const startTime = start.toLocaleTimeString("id-ID", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    const endTime = end.toLocaleTimeString("id-ID", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
 
-                {/* Daftar Kartu Event untuk hari ini */}
-                <div className="space-y-3">
-                  {eventsForDay.map(event => (
-                    <EventCard 
-                      key={event.id}
-                      event={event}
-                      isExpanded={expandedEventId === event.id}
-                      onToggle={() => handleExpandToggle(event.id)}
-                    />
-                  ))}
-                </div>
-              </div>
-            );
-          })}
+    return `${startTime}-${endTime} WIB`;
+  };
+
+  const events: Event[] = savedEvents.map((saved, index) => {
+    const startDate = new Date(saved.eventId.startDate);
+    return {
+      id: saved._id,
+      day: startDate.getDate(),
+      time: formatTime(saved.eventId.startDate, saved.eventId.endDate),
+      title: saved.eventId.title,
+      community: saved.eventId.communityId.title,
+      color: getColorForIndex(index),
+      description: saved.eventId.desc,
+      fullStartDate: startDate,
+    };
+  });
+
+  const groupEventsByDay = () => {
+    const grouped: { [key: string]: Event[] } = {};
+
+    events.forEach((event) => {
+      const dateKey = event.fullStartDate.toDateString();
+      if (!grouped[dateKey]) {
+        grouped[dateKey] = [];
+      }
+      grouped[dateKey].push(event);
+    });
+
+    return Object.entries(grouped)
+      .map(([dateKey, events]) => ({
+        date: new Date(dateKey),
+        events: events.sort(
+          (a, b) => a.fullStartDate.getTime() - b.fullStartDate.getTime()
+        ),
+      }))
+      .sort((a, b) => a.date.getTime() - b.date.getTime());
+  };
+
+  const dayGroups = groupEventsByDay();
+
+  const eventDays = events.map((event) => event.day);
+
+  const handleExpandToggle = (id: string) => {
+    setExpandedEventId((prevId) => (prevId === id ? null : id));
+  };
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-4 md:p-8">
+        <div className="lg:col-span-2">
+          <h1 className="text-3xl font-bold text-gray-900 mb-8">Calendar</h1>
+          <div className="text-center text-gray-500">Loading...</div>
         </div>
       </div>
+    );
+  }
 
-      {/* Kolom Sidebar Kanan (Mini Kalender) */}
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-4 md:p-8">
+      <div className="lg:col-span-2">
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">Calendar</h1>
+
+        {dayGroups.length === 0 ? (
+          <div className="bg-white rounded-xl p-8 text-center text-gray-500">
+            No saved events. Save events from the Event page to see them here!
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {dayGroups.map((group) => {
+              const dateStr = group.date.toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                weekday: "short",
+              });
+
+              return (
+                <div key={group.date.toISOString()}>
+                  <div className="flex items-center gap-4 mb-4">
+                    <span className="text-3xl font-bold text-gray-800 w-10">
+                      {group.date.getDate()}
+                    </span>
+                    <span className="font-semibold text-gray-500 uppercase">
+                      {dateStr}
+                    </span>
+                  </div>
+
+                  <div className="space-y-3">
+                    {group.events.map((event) => (
+                      <EventCard
+                        key={event.id}
+                        event={event}
+                        isExpanded={expandedEventId === event.id}
+                        onToggle={() => handleExpandToggle(event.id)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       <div className="lg:col-span-1">
-        <MiniCalendar 
+        <MiniCalendar
           selectedDate={selectedDate}
           onDateChange={setSelectedDate}
           currentMonth={currentMonth}
           onMonthChange={setCurrentMonth}
+          eventDays={eventDays}
         />
       </div>
-
     </div>
   );
 }
-

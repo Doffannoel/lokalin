@@ -1,77 +1,42 @@
-// components/community/CommunityList.tsx
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import CreateCommunityButton from "./CreateCommunityButton";
 import CommunityCard from "./CommunityCard";
 
 type Community = {
-  id: string;
-  slug: string;
+  _id: string;
   title: string;
+  desc: string;
   image: string;
-  membersPreview: string[];
-  extraMembers: number;
-  freq: string;
-  description: string;
-  mine?: boolean;
+  members: any[];
+  createdBy: any;
+  totalUsers: number;
 };
-
-const DATA: Community[] = [
-  {
-    id: "1",
-    slug: "pecinta-php",
-    title: "Pecinta PHP",
-    image: "/images/community-1.jpg",
-    membersPreview: [
-      "/images/avatars/avatar-1.png",
-      "/images/avatars/avatar-2.png",
-      "/images/avatars/avatar-3.png",
-    ],
-    extraMembers: 66,
-    freq: "10+ posts a day",
-    description:
-      "Lorem Ipsum is simply dummy text of the printing and typesetting industry.",
-  },
-  {
-    id: "2",
-    slug: "cat-lover",
-    title: "Cat Lover",
-    image: "/images/community-2.png",
-    membersPreview: [
-      "/images/avatars/avatar-1.png",
-      "/images/avatars/avatar-2.png",
-      "/images/avatars/avatar-3.png",
-    ],
-    extraMembers: 66,
-    freq: "10+ posts a day",
-    description:
-      "Lorem Ipsum is simply dummy text of the printing and typesetting industry.",
-  },
-  {
-    id: "3",
-    slug: "anak-it-hebat",
-    title: "ANAK IT HEbat",
-    image: "/images/community-3.jpg",
-    membersPreview: [
-      "/images/avatars/avatar-1.png",
-      "/images/avatars/avatar-2.png",
-      "/images/avatars/avatar-3.png",
-    ],
-    extraMembers: 66,
-    freq: "10+ posts a day",
-    description:
-      "Lorem Ipsum is simply dummy text of the printing and typesetting industry.",
-    mine: true, // ✅ Komunitas milik user
-  },
-];
 
 export default function CommunityList() {
   const [tab, setTab] = useState<"all" | "mine">("all");
+  const [communities, setCommunities] = useState<Community[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // filter data
-  const all = DATA;
-  const mine = DATA.filter((d) => d.mine);
-  const list = tab === "all" ? all : mine;
+  useEffect(() => {
+    fetchCommunities();
+  }, [tab]);
+
+  const fetchCommunities = async () => {
+    setLoading(true);
+    try {
+      const filter = tab === "mine" ? "joined" : "all";
+      const res = await fetch(`/api/community?filter=${filter}`, {
+        credentials: "include",
+      });
+      const data = await res.json();
+      setCommunities(data.communities || []);
+    } catch (error) {
+      console.error("Error fetching communities:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
@@ -94,7 +59,7 @@ export default function CommunityList() {
                 tab === "mine" ? "text-[#3434b8]" : "text-gray-400"
               }`}
             >
-              You&apos;re Community
+              Your Communities
             </button>
           </div>
 
@@ -124,23 +89,32 @@ export default function CommunityList() {
 
       {/* List */}
       <div className="mt-6 space-y-4">
-        {list.length === 0 ? (
+        {loading ? (
+          <div className="p-8 text-center text-gray-500">Loading...</div>
+        ) : communities.length === 0 ? (
           <div className="p-8 text-center text-gray-500">
-            You don&apos;t have any communities yet.
+            {tab === "mine"
+              ? "You don't have any communities yet."
+              : "No communities found."}
           </div>
         ) : (
-          list.map((c) => (
+          communities.map((c) => (
             <CommunityCard
-              key={c.id}
-              slug={c.slug}
+              key={c._id}
+              id={c._id}
+              slug={c._id}
               title={c.title}
-              image={c.image}
-              membersPreview={c.membersPreview}
-              extraMembers={c.extraMembers}
-              freq={c.freq}
-              description={c.description}
-              // 🧠 jika di tab you're community, button diubah jadi View
+              image={c.image || "/images/community-placeholder.jpg"}
+              membersPreview={[
+                "/images/avatars/avatar-1.png",
+                "/images/avatars/avatar-2.png",
+                "/images/avatars/avatar-3.png",
+              ]}
+              extraMembers={c.totalUsers || c.members.length}
+              freq="10+ posts a day"
+              description={c.desc}
               mine={tab === "mine"}
+              onUpdate={fetchCommunities}
             />
           ))
         )}

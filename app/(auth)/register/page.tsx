@@ -5,10 +5,32 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
+import { useAuth } from "@/app/contexts/AuthContext";
 
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { register } = useAuth();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      await register(username, email, password, confirmPassword);
+    } catch (err: any) {
+      setError(err.message || "Registrasi gagal");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <motion.div
@@ -18,7 +40,7 @@ export default function RegisterPage() {
       exit={{ opacity: 0, x: -50 }}
       transition={{ duration: 0.5 }}
     >
-      {/* Kiri: Logo + gradient (sama seperti login) */}
+      {/* Kiri: Logo + gradient */}
       <div
         className="relative hidden md:flex items-center justify-center overflow-hidden w-1/2"
         style={{
@@ -46,7 +68,14 @@ export default function RegisterPage() {
             Sign Up
           </h2>
 
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
+
           <motion.form
+            onSubmit={handleSubmit}
             className="space-y-4"
             initial="hidden"
             animate="visible"
@@ -77,9 +106,12 @@ export default function RegisterPage() {
               <input
                 id="username"
                 type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 placeholder="yourname"
                 className="w-full rounded border border-gray-300 bg-gray-200 px-4 py-2 text-sm focus:outline-none focus:border-[#5858FA]"
                 style={{ borderRadius: "4px" }}
+                required
               />
             </motion.div>
 
@@ -100,9 +132,12 @@ export default function RegisterPage() {
               <input
                 id="email"
                 type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 className="w-full rounded border border-gray-300 bg-gray-200 px-4 py-2 text-sm focus:outline-none focus:border-[#5858FA]"
                 style={{ borderRadius: "4px" }}
+                required
               />
             </motion.div>
 
@@ -124,9 +159,12 @@ export default function RegisterPage() {
                 <input
                   id="password"
                   type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   className="w-full rounded border border-gray-300 bg-gray-200 px-4 py-2 pr-10 text-sm focus:outline-none focus:border-[#5858FA]"
                   style={{ borderRadius: "4px" }}
+                  required
                 />
                 <button
                   type="button"
@@ -156,9 +194,12 @@ export default function RegisterPage() {
                 <input
                   id="confirm"
                   type={showConfirmPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
                   className="w-full rounded border border-gray-300 bg-gray-200 px-4 py-2 pr-10 text-sm focus:outline-none focus:border-[#5858FA]"
                   style={{ borderRadius: "4px" }}
+                  required
                 />
                 <button
                   type="button"
@@ -174,14 +215,15 @@ export default function RegisterPage() {
               </div>
             </motion.div>
 
-            {/* Tombol */}
+            {/* Button */}
             <div className="flex justify-left">
               <button
                 type="submit"
-                className="bg-[#5858FA] text-white font-medium text-sm hover:opacity-90 transition"
+                disabled={loading}
+                className="bg-[#5858FA] text-white font-medium text-sm hover:opacity-90 transition disabled:opacity-50"
                 style={{ width: "89px", height: "48px", borderRadius: "18px" }}
               >
-                Sign Up
+                {loading ? "..." : "Sign Up"}
               </button>
             </div>
 

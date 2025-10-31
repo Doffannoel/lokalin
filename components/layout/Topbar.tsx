@@ -1,12 +1,16 @@
 "use client";
 
-import Link from "next/link";
-import { LogOut } from "lucide-react";
+import { useAuth } from "@/app/contexts/AuthContext";
 
 export default function Topbar() {
-  const handleLogout = () => {
-    // Logout logic here
-    window.location.href = "/login";
+  const { logout } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
   };
 
   return (

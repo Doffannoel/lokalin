@@ -1,5 +1,3 @@
-// src/components/homepage/PostModal.tsx
-
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -7,80 +5,142 @@ import Image from "next/image";
 import { X, ImageIcon, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Button from "@/components/ui/Button";
+import { useAuth } from "@/app/contexts/AuthContext";
 
-// Define the props the component will accept
 interface CreatePostModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-// Define communities with value and label for our custom dropdown
-const communities = [
-  { value: "it_support", label: "IT & Support Community" },
-  { value: "design_creative", label: "Design & Creative" },
-  { value: "marketing_gurus", label: "Marketing Gurus" },
-];
+type Community = {
+  _id: string;
+  title: string;
+};
 
-export default function CreatePostModal({ isOpen, onClose }: CreatePostModalProps) {
+export default function CreatePostModal({
+  isOpen,
+  onClose,
+}: CreatePostModalProps) {
   const [postContent, setPostContent] = useState("");
   const [selectedCommunity, setSelectedCommunity] = useState("");
-
   const [attachedImages, setAttachedImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-  
+  const [communities, setCommunities] = useState<Community[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  
-  // const [attachedImage, setAttachedImage] = useState<File | null>(null);
-  // const [imagePreview, setImagePreview] = useState<string | null>(null);
-  // const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  // const dropdownRef = useRef<HTMLDivElement>(null);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchCommunities();
+    }
+  }, [isOpen]);
+
+  const fetchCommunities = async () => {
+    try {
+      const res = await fetch("/api/community?filter=joined", {
+        credentials: "include",
+      });
+      const data = await res.json();
+      setCommunities(data.communities || []);
+    } catch (error) {
+      console.error("Error fetching communities:", error);
+    }
+  };
 
   const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (files) {
       const newFiles = Array.from(files);
-      const newPreviews = newFiles.map(file => URL.createObjectURL(file));
+      const newPreviews = newFiles.map((file) => URL.createObjectURL(file));
 
-      // Append new files and previews to the existing arrays
-      setAttachedImages(prevImages => [...prevImages, ...newFiles]);
-      setImagePreviews(prevPreviews => [...prevPreviews, ...newPreviews]);
+      setAttachedImages((prevImages) => [...prevImages, ...newFiles]);
+      setImagePreviews((prevPreviews) => [...prevPreviews, ...newPreviews]);
     }
-    // Reset file input to allow selecting the same file(s) again
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   };
 
   const handleDiscardImage = (indexToRemove: number) => {
-    // Revoke the object URL to prevent memory leaks
     URL.revokeObjectURL(imagePreviews[indexToRemove]);
 
-    // Filter out the image and its preview from the state arrays
-    setAttachedImages(prevImages => prevImages.filter((_, index) => index !== indexToRemove));
-    setImagePreviews(prevPreviews => prevPreviews.filter((_, index) => index !== indexToRemove));
+    setAttachedImages((prevImages) =>
+      prevImages.filter((_, index) => index !== indexToRemove)
+    );
+    setImagePreviews((prevPreviews) =>
+      prevPreviews.filter((_, index) => index !== indexToRemove)
+    );
   };
 
-  const handlePost = () => {
+  const handlePost = async () => {
     if (!postContent.trim() || !selectedCommunity) {
-      alert("Please write something and select a community.");
+      setError("Please write something and select a community.");
       return;
     }
-    console.log({
-      community: selectedCommunity,
-      content: postContent,
-      image: attachedImages,
-    });
-    onClose(); // This now also resets the dropdown state via the main modal closing
+
+    setLoading(true);
+    setError("");
+
+    try {
+      let imageUrl = "";
+      if (attachedImages.length > 0) {
+        const formData = new FormData();
+        formData.append("file", attachedImages[0]);
+
+        const uploadRes = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        const uploadData = await uploadRes.json();
+
+        if (!uploadData.success) {
+          throw new Error(uploadData.error || "Failed to upload image");
+        }
+
+        imageUrl = uploadData.imageUrl;
+      }
+
+      const res = await fetch("/api/post", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          desc: postContent,
+          image: imageUrl,
+          community_id: selectedCommunity,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to create post");
+      }
+
+      // Success - close modal
+      onClose();
+    } catch (err: any) {
+      setError(err.message || "An error occurred");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Clicks outside of the dropdown to close it
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setIsDropdownOpen(false);
       }
     };
@@ -92,21 +152,23 @@ export default function CreatePostModal({ isOpen, onClose }: CreatePostModalProp
     };
   }, [isDropdownOpen]);
 
-  // Reset local state when the modal is closed from the parent
   useEffect(() => {
     if (!isOpen) {
       setPostContent("");
       setSelectedCommunity("");
       setAttachedImages([]);
-      imagePreviews.forEach(url => URL.revokeObjectURL(url));
+      imagePreviews.forEach((url) => URL.revokeObjectURL(url));
       setImagePreviews([]);
       setIsDropdownOpen(false);
+      setError("");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
-    
-  const selectedCommunityLabel = communities.find(c => c.value === selectedCommunity)?.label || "Select Community";
-  const isPostButtonDisabled = !postContent.trim() || !selectedCommunity;
+
+  const selectedCommunityLabel =
+    communities.find((c) => c._id === selectedCommunity)?.title ||
+    "Select Community";
+  const isPostButtonDisabled =
+    !postContent.trim() || !selectedCommunity || loading;
 
   return (
     <AnimatePresence>
@@ -129,28 +191,27 @@ export default function CreatePostModal({ isOpen, onClose }: CreatePostModalProp
             {/* Modal Header */}
             <div className="p-6 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <Image
-                  src="/images/avatars/avatar-2.png"
-                  alt="Clara Cntk"
-                  width={40}
-                  height={40}
-                  className="rounded-full object-cover"
-                />
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-blue-400 flex items-center justify-center text-white font-semibold">
+                  {user?.username?.charAt(0).toUpperCase() || "U"}
+                </div>
                 <div>
-                  <p className="text-sm text-gray-500">@ClaraCntk</p>
-                  
-                  {/* === NEW: CUSTOM COMMUNITY SELECTOR === */}
+                  <p className="text-sm text-gray-500">
+                    @{user?.username || "User"}
+                  </p>
+
                   <div className="relative" ref={dropdownRef}>
                     <button
                       onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                       className="flex items-center gap-2 text-sm font-semibold text-gray-800 focus:outline-none"
                     >
                       <span>{selectedCommunityLabel}</span>
-                      <motion.div animate={{ rotate: isDropdownOpen ? 180 : 0 }}>
+                      <motion.div
+                        animate={{ rotate: isDropdownOpen ? 180 : 0 }}
+                      >
                         <ChevronDown size={16} />
                       </motion.div>
                     </button>
-                    
+
                     <AnimatePresence>
                       {isDropdownOpen && (
                         <motion.div
@@ -158,31 +219,46 @@ export default function CreatePostModal({ isOpen, onClose }: CreatePostModalProp
                           animate={{ opacity: 1, scale: 1, y: 0 }}
                           exit={{ opacity: 0, scale: 0.95, y: -10 }}
                           transition={{ duration: 0.15, ease: "easeOut" }}
-                          className="absolute top-full mt-2 w-max min-w-full bg-white rounded-lg shadow-xl border border-gray-100 z-10 overflow-hidden"
+                          className="absolute top-full mt-2 w-max min-w-full bg-white rounded-lg shadow-xl border border-gray-100 z-10 overflow-hidden max-h-60 overflow-y-auto"
                         >
-                          {communities.map((community) => (
-                            <button
-                              key={community.value}
-                              onClick={() => {
-                                setSelectedCommunity(community.value);
-                                setIsDropdownOpen(false);
-                              }}
-                              className="w-full text-left text-sm px-4 py-2 hover:bg-gray-50 transition-colors"
-                            >
-                              {community.label}
-                            </button>
-                          ))}
+                          {communities.length === 0 ? (
+                            <div className="px-4 py-3 text-sm text-gray-500">
+                              Join a community first
+                            </div>
+                          ) : (
+                            communities.map((community) => (
+                              <button
+                                key={community._id}
+                                onClick={() => {
+                                  setSelectedCommunity(community._id);
+                                  setIsDropdownOpen(false);
+                                }}
+                                className="w-full text-left text-sm px-4 py-2 hover:bg-gray-50 transition-colors"
+                              >
+                                {community.title}
+                              </button>
+                            ))
+                          )}
                         </motion.div>
                       )}
                     </AnimatePresence>
                   </div>
-                  {/* === END OF CUSTOM SELECTOR === */}
                 </div>
               </div>
-              <button onClick={onClose} className="text-gray-400 hover:text-gray-700">
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-700"
+              >
                 <X size={24} />
               </button>
             </div>
+
+            {/* Error Message */}
+            {error && (
+              <div className="mx-6 mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg text-sm">
+                {error}
+              </div>
+            )}
 
             {/* Modal Body */}
             <div className="px-6 pb-6 pt-0 flex-grow">
@@ -196,8 +272,13 @@ export default function CreatePostModal({ isOpen, onClose }: CreatePostModalProp
               {imagePreviews.length > 0 && (
                 <div className="mt-4 flex flex-wrap gap-3">
                   {imagePreviews.map((preview, index) => (
-                    <div key={index} className="relative w-24 h-24"> {/* Sizing for each preview */}
-                      <Image src={preview} alt={`Image preview ${index + 1}`} layout="fill" className="rounded-lg object-cover" />
+                    <div key={index} className="relative w-24 h-24">
+                      <Image
+                        src={preview}
+                        alt={`Image preview ${index + 1}`}
+                        fill
+                        className="rounded-lg object-cover"
+                      />
                       <button
                         onClick={() => handleDiscardImage(index)}
                         className="absolute -top-2 -right-2 bg-gray-800/80 text-white rounded-full p-1 hover:bg-gray-900 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500"
@@ -213,18 +294,30 @@ export default function CreatePostModal({ isOpen, onClose }: CreatePostModalProp
 
             {/* Modal Footer */}
             <div className="p-6 border-t border-gray-200 flex justify-between items-center">
-              <button onClick={() => fileInputRef.current?.click()} className="text-gray-400 hover:text-gray-600">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="text-gray-400 hover:text-gray-600"
+              >
                 <ImageIcon size={24} />
               </button>
-              <input type="file" ref={fileInputRef} onChange={handleImageChange} accept="image/*" className="hidden" multiple />
-              
-              <Button 
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleImageChange}
+                accept="image/*"
+                className="hidden"
+                multiple
+              />
+
+              <Button
                 onClick={handlePost}
                 disabled={isPostButtonDisabled}
                 variant="primary"
-                className={`transition-opacity ${isPostButtonDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`transition-opacity ${
+                  isPostButtonDisabled ? "opacity-50 cursor-not-allowed" : ""
+                }`}
               >
-                Post
+                {loading ? "Posting..." : "Post"}
               </Button>
             </div>
           </motion.div>

@@ -5,17 +5,28 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useAuth } from "@/app/contexts/AuthContext";
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
-  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Force login: set dummy token
-    document.cookie = "token=dummy-token; path=/";
-    router.push("/homepage");
+    setError("");
+    setLoading(true);
+
+    try {
+      await login(email, password);
+    } catch (err: any) {
+      setError(err.message || "Login gagal");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -38,7 +49,7 @@ export default function LoginPage() {
           <Image
             src="/assets/logo_lokalin.png"
             alt="Lokalin"
-            width={260} // lebih besar
+            width={260}
             height={260}
             unoptimized
             priority
@@ -53,6 +64,12 @@ export default function LoginPage() {
           <h2 className="text-3xl font-bold text-[#150AA1] text-left">
             Log In
           </h2>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
 
           <motion.form
             onSubmit={handleSubmit}
@@ -86,9 +103,12 @@ export default function LoginPage() {
               <input
                 type="email"
                 id="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 className="w-full rounded border border-gray-300 bg-gray-200 px-4 py-2 text-sm focus:outline-none focus:border-[#5858FA]"
                 style={{ borderRadius: "4px" }}
+                required
               />
             </motion.div>
 
@@ -110,9 +130,12 @@ export default function LoginPage() {
                 <input
                   type={showPassword ? "text" : "password"}
                   id="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   className="w-full rounded border border-gray-300 bg-gray-200 px-4 py-2 pr-10 text-sm focus:outline-none focus:border-[#5858FA]"
                   style={{ borderRadius: "4px" }}
+                  required
                 />
                 <button
                   type="button"
@@ -138,20 +161,21 @@ export default function LoginPage() {
             <div className="flex justify-left">
               <button
                 type="submit"
-                className="bg-[#5858FA] text-white font-medium text-sm hover:opacity-90 transition"
+                disabled={loading}
+                className="bg-[#5858FA] text-white font-medium text-sm hover:opacity-90 transition disabled:opacity-50"
                 style={{
                   width: "89px",
                   height: "48px",
                   borderRadius: "18px",
                 }}
               >
-                Log In
+                {loading ? "..." : "Log In"}
               </button>
             </div>
 
             {/* Sign Up Link */}
             <p className="text-left text-sm text-black mt-4">
-              Don’t have an account?{" "}
+              Don't have an account?{" "}
               <Link
                 href="/register"
                 className="font-bold text-[#150AA1] hover:underline"

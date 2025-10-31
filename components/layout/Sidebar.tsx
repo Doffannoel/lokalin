@@ -5,8 +5,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Users, Calendar, Flag } from "lucide-react";
 
+import { useAuth } from "@/app/contexts/AuthContext";
+
 export default function Sidebar() {
   const pathname = usePathname();
+  const { user } = useAuth();
 
   const menuItems = [
     { icon: Home, label: "Home", href: "/homepage" },
@@ -16,7 +19,7 @@ export default function Sidebar() {
   ];
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-[280px] bg-white flex flex-col">
+    <aside className="fixed left-0 top-0 h-screen w-[280px] bg-white flex flex-col border-r border-gray-200">
       {/* Logo */}
       <div className="pl-[30px] border-b border-gray-200">
         <div className="flex items-center gap-1 p-4">
@@ -33,24 +36,13 @@ export default function Sidebar() {
       {/* User Profile */}
       <div className="p-4 border-b border-gray-100">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gray-300 overflow-hidden">
-            <Image
-              src="/assets/avatar-placeholder.png"
-              alt="User"
-              width={40}
-              height={40}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                e.currentTarget.style.display = "none";
-                if (e.currentTarget.parentElement) {
-                  e.currentTarget.parentElement.innerHTML =
-                    '<div class="w-full h-full bg-gradient-to-br from-purple-400 to-blue-400"></div>';
-                }
-              }}
-            />
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-blue-400 flex items-center justify-center text-white font-semibold">
+            {user?.username?.charAt(0).toUpperCase() || "U"}
           </div>
           <div>
-            <p className="font-semibold text-sm text-gray-900">@ClaraConk</p>
+            <p className="font-semibold text-sm text-gray-900">
+              @{user?.username || "User"}
+            </p>
           </div>
         </div>
       </div>

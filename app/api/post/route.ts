@@ -26,6 +26,7 @@ export async function POST(req: Request) {
 export async function GET() {
   await dbConnect();
   const posts = await Post.find()
+    .sort({ createdAt: -1 })
     .populate("user_id", "username image")
     .populate("community_id", "title");
   return NextResponse.json(posts);
