@@ -1,3 +1,4 @@
+// app/api/auth/login/route.ts
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -22,14 +23,27 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Password salah" }, { status: 401 });
     }
 
-    const token = jwt.sign({ id: user._id, email: user.email }, JWT_SECRET, {
-      expiresIn: "1d",
+    const token = jwt.sign(
+      { id: user._id, email: user.email }, // payload cukup id & email
+      JWT_SECRET,
+      { expiresIn: "1d" }
+    );
+
+    const res = NextResponse.json({
+      message: "Login berhasil",
+      user: {
+        id: user._id.toString(),
+        username: user.username,     // ⬅️ penting untuk Sidebar
+        email: user.email,
+        image: user.image ?? null,   // opsional
+      },
+      token,
     });
 
-    const res = NextResponse.json({ message: "Login berhasil", user: { id: user._id, name: user.name, email: user.email } , token });
     res.cookies.set("token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
       maxAge: 60 * 60 * 24, // 1 hari
       path: "/",
     });
