@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import dbConnect from "@/lib/dbConnect";
 import Community from "@/models/Community";
 import { getUserFromToken } from "@/lib/auth";
@@ -6,7 +7,8 @@ import { getUserFromToken } from "@/lib/auth";
 // ✅ CREATE COMMUNITY
 export async function POST(req: Request) {
   await dbConnect();
-  const user = await getUserFromToken();
+  const token = (await cookies()).get("token")?.value;
+  const user = await getUserFromToken(token);
   if (!user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
   const { title, desc, image } = await req.json();
@@ -27,7 +29,8 @@ export async function POST(req: Request) {
 // ✅ GET ALL COMMUNITY (FILTERABLE)
 export async function GET(req: Request) {
   await dbConnect();
-  const user = await getUserFromToken();
+  const token = (await cookies()).get("token")?.value;
+  const user = await getUserFromToken(token);
   const { searchParams } = new URL(req.url);
   const filter = searchParams.get("filter"); // all | joined | unjoined
 

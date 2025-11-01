@@ -1,13 +1,16 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import dbConnect from "@/lib/dbConnect";
 import SavedEvent from "@/models/SavedEvent";
 import { getUserFromToken } from "@/lib/auth";
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
     await dbConnect();
 
-    const user = await getUserFromToken(req);
+    const cookieStore = await cookies();
+    const token = cookieStore.get("token")?.value;
+    const user = await getUserFromToken(token);
     if (!user)
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
@@ -34,6 +37,9 @@ export async function GET(req: Request) {
     return NextResponse.json({ events });
   } catch (err) {
     console.error("Calendar fetch error:", err);
-    return NextResponse.json({ message: "Failed to load calendar" }, { status: 500 });
+    return NextResponse.json(
+      { message: "Failed to load calendar" },
+      { status: 500 }
+    );
   }
 }
