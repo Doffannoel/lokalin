@@ -1,19 +1,22 @@
-import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+// app/api/community/route.ts
+import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Community from "@/models/Community";
-import { getUserFromToken } from "@/lib/auth";
+import { getUserFromRequest } from "@/lib/auth";
 
 // ✅ CREATE COMMUNITY
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   await dbConnect();
-  const token = (await cookies()).get("token")?.value;
-  const user = await getUserFromToken(token);
-  if (!user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+
+  const user = await getUserFromRequest(req);
+  if (!user) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
 
   const { title, desc, image } = await req.json();
-  if (!title || !desc)
+  if (!title || !desc) {
     return NextResponse.json({ message: "Title dan deskripsi wajib diisi" }, { status: 400 });
+  }
 
   const community = await Community.create({
     title,
@@ -21,26 +24,31 @@ export async function POST(req: Request) {
     image: image || "",
     createdBy: user._id,
     members: [user._id],
+    totalUsers: 1,
   });
 
-  return NextResponse.json({ message: "Komunitas berhasil dibuat", community }, { status: 201 });
+  return NextResponse.json(
+    { message: "Komunitas berhasil dibuat", community },
+    { status: 201 }
+  );
 }
 
 // ✅ GET ALL COMMUNITY (FILTERABLE)
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   await dbConnect();
-  const token = (await cookies()).get("token")?.value;
-  const user = await getUserFromToken(token);
-  const { searchParams } = new URL(req.url);
-  const filter = searchParams.get("filter"); // all | joined | unjoined
 
-  let query = {};
+  const user = await getUserFromRequest(req); // boleh null jika belum login
+  const { searchParams } = new URL(req.url);
+  const filter = searchParams.get("filter"); // "all" | "joined" | "unjoined"
+
+  let query: any = {};
 
   if (user && filter === "joined") {
     query = { members: user._id };
   } else if (user && filter === "unjoined") {
     query = { members: { $ne: user._id } };
   }
+  // else: "all" atau tidak login -> query {}
 
   const communities = await Community.find(query)
     .populate("createdBy", "username email")

@@ -1,19 +1,20 @@
-import { NextResponse } from "next/server";
+// app/api/community/[id]/join/route.ts
+import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Community from "@/models/Community";
-import { getUserFromToken } from "@/lib/auth";
+import { getUserFromRequest } from "@/lib/auth";
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   await dbConnect();
-  const user = await getUserFromToken(req);
+
+  const user = await getUserFromRequest(req);
   if (!user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
   const community = await Community.findById(params.id);
   if (!community) return NextResponse.json({ message: "Komunitas tidak ditemukan" }, { status: 404 });
 
-  if (community.members.includes(user._id)) {
-    return NextResponse.json({ message: "Sudah bergabung" }, { status: 400 });
-  }
+  const already = community.members.some((m: any) => m.toString() === user._id.toString());
+  if (already) return NextResponse.json({ message: "Sudah bergabung" }, { status: 400 });
 
   community.members.push(user._id);
   community.totalUsers = community.members.length;

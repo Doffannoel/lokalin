@@ -1,28 +1,30 @@
-import { NextResponse } from "next/server";
-import jwt from "jsonwebtoken";
+// app/api/auth/me/route.ts
+export const runtime = "nodejs"; // ⬅️ WAJIB kalau pakai jsonwebtoken
+
+import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
-import User from "@/models/Users";
+import { getUserFromRequest } from "@/lib/auth";
 
-const JWT_SECRET = process.env.JWT_SECRET!;
-
-export async function GET(req: Request) {
-  await dbConnect();
-
+export async function GET(req: NextRequest) {
   try {
-    const token = req.headers.get("cookie")?.split("token=")[1];
-    if (!token) {
-      return NextResponse.json({ message: "Tidak ada token" }, { status: 401 });
-    }
+    await dbConnect(); // ⬅️ Pastikan DB connect dulu
 
-    const decoded = jwt.verify(token, JWT_SECRET) as { id: string };
-    const user = await User.findById(decoded.id).select("-password");
-
+    const user = await getUserFromRequest(req);
     if (!user) {
-      return NextResponse.json({ message: "User tidak ditemukan" }, { status: 404 });
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    return NextResponse.json({ user });
-  } catch (error) {
-    return NextResponse.json({ message: "Token tidak valid" }, { status: 401 });
+    return NextResponse.json({
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        username: user.username,
+        image: user.image
+      }
+    });
+  } catch (err) {
+    console.error("GET /api/auth/me ERROR:", err);
+    return NextResponse.json({ message: "Server Error" }, { status: 500 });
   }
 }
