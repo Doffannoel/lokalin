@@ -1,3 +1,4 @@
+// app/api/event/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import dbConnect from "@/lib/dbConnect";
@@ -7,10 +8,14 @@ import { getUserFromToken } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+// GET /api/event/:id
+export async function GET(
+  _req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   await dbConnect();
 
-  const { id } = params;
+  const { id } = await context.params; // ⬅️ penting: await
   if (!mongoose.isValidObjectId(id)) {
     return NextResponse.json({ message: "ID event tidak valid" }, { status: 400 });
   }
@@ -31,12 +36,17 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   }
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+// PATCH /api/event/:id
+export async function PATCH(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   await dbConnect();
+
   const user = await getUserFromToken(req);
   if (!user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
-  const { id } = params;
+  const { id } = await context.params; // ⬅️ penting: await
   if (!mongoose.isValidObjectId(id)) {
     return NextResponse.json({ message: "ID event tidak valid" }, { status: 400 });
   }
@@ -60,12 +70,17 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+// DELETE /api/event/:id
+export async function DELETE(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   await dbConnect();
+
   const user = await getUserFromToken(req);
   if (!user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
-  const { id } = params;
+  const { id } = await context.params; // ⬅️ penting: await
   if (!mongoose.isValidObjectId(id)) {
     return NextResponse.json({ message: "ID event tidak valid" }, { status: 400 });
   }
