@@ -115,6 +115,14 @@ export default function CreateCommunityPage() {
     }
   }, [rawImageUrl, croppedAreaPixels]);
 
+  const safeJson = async (res: Response) => {
+    try {
+      return await res.json();
+    } catch {
+      return {};
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -123,7 +131,11 @@ export default function CreateCommunityPage() {
       alert("Please login first");
       return;
     }
-    if (!title.trim() || !desc.trim()) {
+
+    const cleanTitle = title.trim();
+    const cleanDesc = desc.trim();
+
+    if (!cleanTitle || !cleanDesc) {
       setError("Title and description are required");
       return;
     }
@@ -138,7 +150,7 @@ export default function CreateCommunityPage() {
           method: "POST",
           body: formData,
         });
-        const uploadData = await uploadRes.json();
+        const uploadData: any = await safeJson(uploadRes);
         if (!uploadRes.ok || !uploadData?.success) {
           throw new Error(uploadData?.error || "Failed to upload image");
         }
@@ -149,14 +161,29 @@ export default function CreateCommunityPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ title, desc, image: imageUrl }),
+        body: JSON.stringify({ title: cleanTitle, desc: cleanDesc, image: imageUrl }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.message || "Failed to create community");
 
-      router.push("/community");
+      const data: any = await safeJson(res);
+
+      // 🔴 nama komunitas duplikat → API balas 409
+      if (res.status === 409) {
+        setError(data?.message || "Community name is already taken.");
+        return;
+      }
+      if (!res.ok) {
+        throw new Error(data?.message || "Failed to create community");
+      }
+
+      // ✅ sukses — arahkan ke detail berdasarkan slug (kalau tersedia)
+      const slug = data?.community?.slug || data?.slug;
+      if (slug) {
+        router.push(`/community/${slug}`);
+      } else {
+        router.push("/community");
+      }
     } catch (err: any) {
-      setError(err.message || "An error occurred");
+      setError(err?.message || "An error occurred");
     } finally {
       setLoading(false);
     }
@@ -270,7 +297,7 @@ export default function CreateCommunityPage() {
                 image={rawImageUrl}
                 crop={crop}
                 zoom={zoom}
-                aspect={5}            // ⬅️ 5:1 seperti Reddit banner
+                aspect={5}            // 5:1 seperti Reddit banner
                 onCropChange={setCrop}
                 onZoomChange={setZoom}
                 onCropComplete={onCropComplete}

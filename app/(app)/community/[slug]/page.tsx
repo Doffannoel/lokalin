@@ -30,6 +30,7 @@ type Post = {
 };
 
 export default function CommunityDetailPage({ params }: Props) {
+  // Next 15: params adalah Promise
   const { slug } = use(params);
 
   const [community, setCommunity] = useState<Community | null>(null);
@@ -69,9 +70,7 @@ export default function CommunityDetailPage({ params }: Props) {
   // gunakan community_id (slug boleh id/slug; API post-mu sudah handle)
   const fetchPosts = async () => {
     try {
-      const res = await fetch(`/api/post?community_id=${slug}`, {
-        credentials: "include",
-      });
+      const res = await fetch(`/api/post?community_id=${slug}`, { credentials: "include" });
       const data = await res.json();
 
       const raw: any[] = Array.isArray(data?.posts)
@@ -189,9 +188,7 @@ export default function CommunityDetailPage({ params }: Props) {
 
       // sync state UI
       setCommunity((prev) =>
-        prev
-          ? { ...prev, title: editTitle.trim(), desc: editDesc.trim(), image: imageUrl }
-          : prev
+        prev ? { ...prev, title: editTitle.trim(), desc: editDesc.trim(), image: imageUrl } : prev
       );
       setEditOpen(false);
     } catch (e: any) {
@@ -217,7 +214,7 @@ export default function CommunityDetailPage({ params }: Props) {
   }
 
   const createdById =
-    (community.createdBy && community.createdBy._id) || community.createdBy;
+    (community.createdBy && (community.createdBy as any)._id) || community.createdBy;
   const isAdmin = user && createdById?.toString() === user.id?.toString();
   const isMember =
     !!user &&
@@ -246,10 +243,7 @@ export default function CommunityDetailPage({ params }: Props) {
               members: prev.members.filter(
                 (m: any) => (m?._id ?? m).toString() !== user.id.toString()
               ),
-              totalUsers: Math.max(
-                0,
-                (prev.totalUsers || prev.members.length) - 1
-              ),
+              totalUsers: Math.max(0, (prev.totalUsers || prev.members.length) - 1),
             }
           : prev
       );
@@ -269,19 +263,36 @@ export default function CommunityDetailPage({ params }: Props) {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message || "Failed to join community");
 
-      // tambah user ke members + update total
       setCommunity((prev) =>
         prev
           ? {
               ...prev,
-              members: [
-                ...prev.members,
-                { _id: user.id, username: user.username },
-              ],
+              members: [...prev.members, { _id: user.id, username: user.username }],
               totalUsers: (prev.totalUsers || prev.members.length) + 1,
             }
           : prev
       );
+    } catch (e: any) {
+      alert(e?.message || "Something went wrong");
+    }
+  }
+
+  // delete komunitas (ADMIN ONLY)
+  async function handleDeleteCommunity() {
+    if (!community || !user) return;
+    if (!confirm("Are you sure you want to delete this community? This action cannot be undone.")) return;
+
+    try {
+      const res = await fetch(`/api/community/${community._id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.message || "Failed to delete community");
+
+      // berhasil → pindah ke halaman list komunitas
+      window.location.href = "/community";
     } catch (e: any) {
       alert(e?.message || "Something went wrong");
     }
@@ -295,10 +306,7 @@ export default function CommunityDetailPage({ params }: Props) {
         <main className="lg:col-span-8 px-4 lg:px-8">
           {/* Cover */}
           <div className="relative rounded-b-lg overflow-hidden shadow-sm">
-            <div
-              className="relative w-full bg-gray-200"
-              style={{ paddingTop: "20%" }}
-            >
+            <div className="relative w-full bg-gray-200" style={{ paddingTop: "20%" }}>
               <Image
                 src={community.image || "/images/community-placeholder.jpg"}
                 alt={community.title}
@@ -306,7 +314,7 @@ export default function CommunityDetailPage({ params }: Props) {
                 className="object-cover"
                 sizes="100vw"
               />
-              {/* ✅ Bagian overlay di-cover (UI sama, peletakan rapi) */}
+              {/* overlay */}
               <div className="absolute inset-0 flex items-start justify-between p-4">
                 <Link
                   href="/community"
@@ -317,21 +325,39 @@ export default function CommunityDetailPage({ params }: Props) {
 
                 <div className="flex items-center gap-3">
                   {isAdmin ? (
-                    <button
-                      onClick={openEdit}
-                      className="inline-flex items-center gap-2 bg-white/90 text-[#1e1e9b] px-3 py-2 rounded-full shadow"
-                    >
-                      <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="#1e1e9b"
-                        aria-hidden
+                    <>
+                      <button
+                        onClick={openEdit}
+                        className="inline-flex items-center gap-2 bg-white/90 text-[#1e1e9b] px-3 py-2 rounded-full shadow"
                       >
-                        <path d="M3 11h8V3h2v8h8v2h-8v8h-2v-8H3z" />
-                      </svg>
-                      Edit Group
-                    </button>
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="#1e1e9b"
+                          aria-hidden="true"
+                        >
+                          <path d="M3 11h8V3h2v8h8v2h-8v8h-2v-8H3z" />
+                        </svg>
+                        Edit Group
+                      </button>
+                      <button
+                        onClick={handleDeleteCommunity}
+                        className="inline-flex items-center gap-2 bg-red-500 text-white px-3 py-2 rounded-full shadow hover:bg-red-600"
+                        title="Delete this community"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="white" aria-hidden="true">
+                          <path
+                            d="M3 6h18M9 6v12m6-12v12M5 6l1 14a2 2 0 002 2h8a2 2 0 002-2l1-14"
+                            stroke="white"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                        Delete
+                      </button>
+                    </>
                   ) : isMember ? (
                     <button
                       onClick={handleLeave}
@@ -357,9 +383,7 @@ export default function CommunityDetailPage({ params }: Props) {
           {/* Title & stats */}
           <div className="mt-6 flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-[#1e1e9b]">
-                {community.title}
-              </h1>
+              <h1 className="text-2xl font-bold text-[#1e1e9b]">{community.title}</h1>
               <div className="mt-2 text-sm text-gray-500 flex gap-6">
                 <span>{posts.length} Posts</span>
                 <span>{community.totalUsers} Members</span>
@@ -369,13 +393,7 @@ export default function CommunityDetailPage({ params }: Props) {
             {isAdmin && (
               <div className="flex items-center gap-3">
                 <button className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-gray-200 shadow">
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="#1e1e9b"
-                    aria-hidden
-                  >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="#1e1e9b" aria-hidden="true">
                     <path
                       d="M12 5v14M5 12h14"
                       stroke="#1e1e9b"
@@ -398,22 +416,15 @@ export default function CommunityDetailPage({ params }: Props) {
               </div>
             ) : (
               posts.map((post) => (
-                <article
-                  key={post._id}
-                  className="bg-white border rounded-xl shadow-sm p-6"
-                >
+                <article key={post._id} className="bg-white border rounded-xl shadow-sm p-6">
                   <header className="flex justify-between">
                     <div className="flex gap-4">
                       <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-purple-400 to-blue-400 flex items-center justify-center text-white font-semibold">
                         {post.user_id.username.charAt(0).toUpperCase()}
                       </div>
                       <div>
-                        <div className="font-semibold text-gray-900">
-                          @{post.user_id.username}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {community.title}
-                        </div>
+                        <div className="font-semibold text-gray-900">@{post.user_id.username}</div>
+                        <div className="text-xs text-gray-500">{community.title}</div>
                       </div>
                     </div>
                     <div className="text-xs text-gray-400">
@@ -421,9 +432,7 @@ export default function CommunityDetailPage({ params }: Props) {
                     </div>
                   </header>
 
-                  <div className="mt-4 text-gray-700 leading-relaxed">
-                    {post.desc}
-                  </div>
+                  <div className="mt-4 text-gray-700 leading-relaxed">{post.desc}</div>
 
                   {post.image && (
                     <div className="mt-4 overflow-hidden rounded-lg">
@@ -437,31 +446,32 @@ export default function CommunityDetailPage({ params }: Props) {
                     </div>
                   )}
 
-<footer className="mt-4 flex items-center gap-4 text-gray-600">
-  <button
-    type="button"
-    onClick={() => toggleLike(post._id)}
-    disabled={!!liking[post._id]}
-    aria-pressed={!!post.liked}
-    title={post.liked ? "Unlike" : "Like"}
-    className={`inline-flex items-center gap-2 text-sm transition-colors ${
-      post.liked ? "text-rose-600" : "text-gray-600"
-    } ${liking[post._id] ? "opacity-60 cursor-not-allowed" : "hover:opacity-90"}`}
-  >
-    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden>
-      <path
-        d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 10-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 000-7.78z"
-        fill={post.liked ? "currentColor" : "none"}     // 🔴 merah saat liked, transparan saat tidak
-        stroke="currentColor"                           // outline ikut warna teks (abu/merah)
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-    <span>{post.likes} Likes</span>
-  </button>
-</footer>
-
+                  <footer className="mt-4 flex items-center gap-4 text-gray-600">
+                    <button
+                      type="button"
+                      onClick={() => toggleLike(post._id)}
+                      disabled={!!liking[post._id]}
+                      aria-pressed={!!post.liked}
+                      title={post.liked ? "Unlike" : "Like"}
+                      className={`inline-flex items-center gap-2 text-sm transition-colors ${
+                        post.liked ? "text-rose-600" : "text-gray-600"
+                      } ${liking[post._id] ? "opacity-60 cursor-not-allowed" : "hover:opacity-90"}`}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                        <path
+                          d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 10-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 000-7.78z"
+                          /* merah saat liked, transparan saat tidak */
+                          fill={post.liked ? "currentColor" : "none"}
+                          /* outline ikut warna teks (abu/merah) */
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                      <span>{post.likes} Likes</span>
+                    </button>
+                  </footer>
                 </article>
               ))
             )}
@@ -471,9 +481,7 @@ export default function CommunityDetailPage({ params }: Props) {
         {/* Members sidebar */}
         <aside className="hidden lg:block lg:col-span-3 border-l border-gray-100">
           <div className="sticky top-20 p-6">
-            <h3 className="text-sm font-semibold text-[#1e1e9b] mb-4">
-              Members
-            </h3>
+            <h3 className="text-sm font-semibold text-[#1e1e9b] mb-4">Members</h3>
             <div className="space-y-4">
               {community.members.slice(0, 5).map((member: any, index: number) => (
                 <div key={member._id || index} className="flex items-center gap-3">

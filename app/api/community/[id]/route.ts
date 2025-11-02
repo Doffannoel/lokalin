@@ -7,6 +7,18 @@ import mongoose from "mongoose";
 // (opsional) pastikan diroute ini selalu dynamic
 export const dynamic = "force-dynamic";
 
+// helpers (DITAMBAHKAN)
+const isObjectId = (s: string) => /^[0-9a-fA-F]{24}$/.test(s);
+const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const slugify = (input: string) =>
+  input
+    .toLowerCase()
+    .trim()
+    .replace(/[\s_]+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+
 // ✅ DETAIL — dukung param :id berupa ObjectId ATAU slug
 export async function GET(_req: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
@@ -45,7 +57,6 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
   try {
     payload = await req.json();
   } catch {
-    // kalau tanpa body JSON, balas error rapi
     return NextResponse.json({ message: "Bad JSON payload" }, { status: 400 });
   }
 
@@ -54,7 +65,36 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
   if (typeof payload.desc === "string") toUpdate.desc = payload.desc.trim();
   if (typeof payload.image === "string") toUpdate.image = payload.image;
 
-  const updated = await Community.findByIdAndUpdate(id, toUpdate, { new: true })
+  // ⬇️ DITAMBAHKAN: Cek duplikat nama & perbarui slug bila title berubah
+  if (typeof toUpdate.title === "string" && toUpdate.title.length > 0) {
+    // duplikat nama (case-insensitive) kecuali dirinya sendiri
+    const dup = await Community.findOne({
+      _id: { $ne: community._id },
+      title: { $regex: `^${escapeRegex(toUpdate.title)}$`, $options: "i" },
+    }).select("_id");
+
+    if (dup) {
+      return NextResponse.json(
+        { message: "Nama komunitas sudah digunakan. Gunakan nama lain." },
+        { status: 409 }
+      );
+    }
+
+    // kalau title berbeda → regen slug unik
+    if (toUpdate.title.toLowerCase() !== String(community.title).toLowerCase()) {
+      const base = slugify(toUpdate.title) || "community";
+      let newSlug = base;
+      let i = 1;
+      // pastikan unik selain dirinya
+      // @ts-ignore
+      while (await Community.exists({ slug: newSlug, _id: { $ne: community._id } })) {
+        newSlug = `${base}-${i++}`;
+      }
+      toUpdate.slug = newSlug;
+    }
+  }
+
+  const updated = await Community.findByIdAndUpdate(community._id, toUpdate, { new: true })
     .populate("createdBy", "username email")
     .populate("members", "username email");
 
