@@ -7,10 +7,10 @@ import { getUserFromToken } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, context: { params: { id: string } }) {
   await dbConnect();
 
-  const { id } = params;
+  const { id } = context.params;
   if (!mongoose.isValidObjectId(id)) {
     return NextResponse.json({ message: "ID event tidak valid" }, { status: 400 });
   }
@@ -31,12 +31,12 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   }
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, context: { params: { id: string } }) {
   await dbConnect();
   const user = await getUserFromToken(req);
   if (!user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
-  const { id } = params;
+  const { id } = context.params;
   if (!mongoose.isValidObjectId(id)) {
     return NextResponse.json({ message: "ID event tidak valid" }, { status: 400 });
   }
@@ -60,12 +60,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, context: { params: { id: string } }) {
   await dbConnect();
   const user = await getUserFromToken(req);
   if (!user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
-  const { id } = params;
+  const { id } = context.params;
   if (!mongoose.isValidObjectId(id)) {
     return NextResponse.json({ message: "ID event tidak valid" }, { status: 400 });
   }
