@@ -30,7 +30,6 @@ type Post = {
 };
 
 export default function CommunityDetailPage({ params }: Props) {
-  // Next 15: params adalah Promise
   const { slug } = use(params);
 
   const [community, setCommunity] = useState<Community | null>(null);
@@ -39,7 +38,7 @@ export default function CommunityDetailPage({ params }: Props) {
   const [liking, setLiking] = useState<Record<string, boolean>>({});
   const { user } = useAuth();
 
-  // state untuk edit modal
+  // EDIT modal states (existing)
   const [editOpen, setEditOpen] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editDesc, setEditDesc] = useState("");
@@ -47,6 +46,21 @@ export default function CommunityDetailPage({ params }: Props) {
   const [editBannerPreview, setEditBannerPreview] = useState<string | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
   const [editError, setEditError] = useState<string>("");
+
+  // NEW: EVENT modal states
+  const [eventOpen, setEventOpen] = useState(false);
+  const [evTitle, setEvTitle] = useState("");
+  const [evDesc, setEvDesc] = useState("");
+  const [evStartDate, setEvStartDate] = useState("");
+  const [evEndDate, setEvEndDate] = useState("");
+  const [evStartTime, setEvStartTime] = useState("");
+  const [evEndTime, setEvEndTime] = useState("");
+  const [savingEvent, setSavingEvent] = useState(false);
+  const [eventError, setEventError] = useState("");
+
+  function combineDateTime(date: string, time: string) {
+  return new Date(`${date}T${time}:00`).toISOString();
+  }
 
   useEffect(() => {
     if (!slug) return;
@@ -67,10 +81,11 @@ export default function CommunityDetailPage({ params }: Props) {
     }
   };
 
-  // gunakan community_id (slug boleh id/slug; API post-mu sudah handle)
   const fetchPosts = async () => {
     try {
-      const res = await fetch(`/api/post?community_id=${slug}`, { credentials: "include" });
+      const res = await fetch(`/api/post?community_id=${slug}`, {
+        credentials: "include",
+      });
       const data = await res.json();
 
       const raw: any[] = Array.isArray(data?.posts)
@@ -99,7 +114,6 @@ export default function CommunityDetailPage({ params }: Props) {
     if (!user) return alert("Please login first");
     if (liking[postId]) return;
 
-    // optimistic
     setPosts((prev) =>
       prev.map((p) =>
         p._id === postId ? { ...p, liked: !p.liked, likes: p.likes + (p.liked ? -1 : 1) } : p
@@ -111,7 +125,6 @@ export default function CommunityDetailPage({ params }: Props) {
       const res = await fetch(`/api/post/${postId}/like`, { method: "POST", credentials: "include" });
       const _data = await res.json();
       if (!res.ok) {
-        // rollback
         setPosts((prev) =>
           prev.map((p) =>
             p._id === postId ? { ...p, liked: !p.liked, likes: p.likes + (p.liked ? -1 : 1) } : p
@@ -119,7 +132,6 @@ export default function CommunityDetailPage({ params }: Props) {
         );
       }
     } catch (e) {
-      // rollback
       setPosts((prev) =>
         prev.map((p) =>
           p._id === postId ? { ...p, liked: !p.liked, likes: p.likes + (p.liked ? -1 : 1) } : p
@@ -130,7 +142,7 @@ export default function CommunityDetailPage({ params }: Props) {
     }
   }
 
-  // ====== EDIT MODAL HANDLERS ======
+  // ====== EDIT MODAL HANDLERS (existing) ======
   function openEdit() {
     if (!community) return;
     setEditTitle(community.title);
@@ -159,37 +171,25 @@ export default function CommunityDetailPage({ params }: Props) {
 
     try {
       let imageUrl = community.image || "";
-
-      // kalau admin pilih banner baru, upload dulu
       if (editBannerFile) {
         const form = new FormData();
         form.append("file", editBannerFile);
         const up = await fetch("/api/upload", { method: "POST", body: form });
         const upData = await up.json();
-        if (!up.ok || !upData?.success) {
-          throw new Error(upData?.error || "Failed to upload banner");
-        }
+        if (!up.ok || !upData?.success) throw new Error(upData?.error || "Failed to upload banner");
         imageUrl = upData.imageUrl;
       }
 
-      // PATCH pakai _id (aman walau halaman diakses via slug)
       const res = await fetch(`/api/community/${community._id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          title: editTitle.trim(),
-          desc: editDesc.trim(),
-          image: imageUrl,
-        }),
+        body: JSON.stringify({ title: editTitle.trim(), desc: editDesc.trim(), image: imageUrl }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message || "Failed to update community");
 
-      // sync state UI
-      setCommunity((prev) =>
-        prev ? { ...prev, title: editTitle.trim(), desc: editDesc.trim(), image: imageUrl } : prev
-      );
+      setCommunity((prev) => (prev ? { ...prev, title: editTitle.trim(), desc: editDesc.trim(), image: imageUrl } : prev));
       setEditOpen(false);
     } catch (e: any) {
       setEditError(e?.message || "Update failed");
@@ -199,40 +199,26 @@ export default function CommunityDetailPage({ params }: Props) {
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex justify-center items-center text-gray-500">
-        Loading...
-      </div>
-    );
+    return <div className="min-h-screen flex justify-center items-center text-gray-500">Loading...</div>;
   }
   if (!community) {
-    return (
-      <div className="min-h-screen flex justify-center items-center">
-        Community not found
-      </div>
-    );
+    return <div className="min-h-screen flex justify-center items-center">Community not found</div>;
   }
 
-  const createdById =
-    (community.createdBy && (community.createdBy as any)._id) || community.createdBy;
+  const createdById = (community.createdBy && (community.createdBy as any)._id) || community.createdBy;
   const isAdmin = user && createdById?.toString() === user.id?.toString();
   const isMember =
     !!user &&
     Array.isArray(community.members) &&
-    community.members.some(
-      (m: any) => (m?._id ?? m)?.toString?.() === user.id?.toString?.()
-    );
+    community.members.some((m: any) => (m?._id ?? m)?.toString?.() === user.id?.toString?.());
 
-  // keluar komunitas
+  // Leave / Join / Delete (existing)
   async function handleLeave() {
     if (!community || !user) return;
     if (!confirm("Are you sure you want to leave this community?")) return;
 
     try {
-      const res = await fetch(`/api/community/${community._id}/leave`, {
-        method: "POST",
-        credentials: "include",
-      });
+      const res = await fetch(`/api/community/${community._id}/leave`, { method: "POST", credentials: "include" });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message || "Failed to leave community");
 
@@ -240,9 +226,7 @@ export default function CommunityDetailPage({ params }: Props) {
         prev
           ? {
               ...prev,
-              members: prev.members.filter(
-                (m: any) => (m?._id ?? m).toString() !== user.id.toString()
-              ),
+              members: prev.members.filter((m: any) => (m?._id ?? m).toString() !== user.id.toString()),
               totalUsers: Math.max(0, (prev.totalUsers || prev.members.length) - 1),
             }
           : prev
@@ -252,14 +236,10 @@ export default function CommunityDetailPage({ params }: Props) {
     }
   }
 
-  // join komunitas
   async function handleJoin() {
     if (!community || !user) return;
     try {
-      const res = await fetch(`/api/community/${community._id}/join`, {
-        method: "POST",
-        credentials: "include",
-      });
+      const res = await fetch(`/api/community/${community._id}/join`, { method: "POST", credentials: "include" });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message || "Failed to join community");
 
@@ -277,26 +257,87 @@ export default function CommunityDetailPage({ params }: Props) {
     }
   }
 
-  // delete komunitas (ADMIN ONLY)
   async function handleDeleteCommunity() {
     if (!community || !user) return;
     if (!confirm("Are you sure you want to delete this community? This action cannot be undone.")) return;
 
     try {
-      const res = await fetch(`/api/community/${community._id}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-
+      const res = await fetch(`/api/community/${community._id}`, { method: "DELETE", credentials: "include" });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message || "Failed to delete community");
-
-      // berhasil → pindah ke halaman list komunitas
       window.location.href = "/community";
     } catch (e: any) {
       alert(e?.message || "Something went wrong");
     }
   }
+
+ function openEventModal() {
+  setEventError("");
+  setEvTitle("");
+  setEvDesc("");
+  setEvStartDate("");
+  setEvEndDate("");
+  setEvStartTime("");
+  setEvEndTime("");
+  setEventOpen(true);
+}
+
+async function saveEvent() {
+  if (!community) return;
+
+  // validasi dasar
+  if (
+    !evTitle.trim() ||
+    !evDesc.trim() ||
+    !evStartDate ||
+    !evEndDate ||
+    !evStartTime ||
+    !evEndTime
+  ) {
+    setEventError("Please complete all fields.");
+    return;
+  }
+
+  const startISO = combineDateTime(evStartDate, evStartTime);
+  const endISO = combineDateTime(evEndDate, evEndTime);
+
+  // validasi rentang waktu
+  if (new Date(endISO) <= new Date(startISO)) {
+    setEventError("End date/time must be after start date/time.");
+    return;
+  }
+
+  setSavingEvent(true);
+  setEventError("");
+
+  try {
+    // Gunakan endpoint Event yang sudah ada
+    const res = await fetch(`/api/event`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: evTitle.trim(),
+        desc: evDesc.trim(),
+        startDate: startISO,
+        endDate: endISO,
+        communityId: community._id, // penting: hubungkan ke komunitas ini
+        // image (opsional) bisa ditambahkan nanti kalau ada upload banner event
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.message || "Failed to create event");
+
+    // Berhasil → tutup modal & pindah ke tab Event
+    setEventOpen(false);
+    window.location.href = "/event";
+  } catch (e: any) {
+    setEventError(e?.message || "Failed to create event");
+  } finally {
+    setSavingEvent(false);
+  }
+}
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -316,10 +357,7 @@ export default function CommunityDetailPage({ params }: Props) {
               />
               {/* overlay */}
               <div className="absolute inset-0 flex items-start justify-between p-4">
-                <Link
-                  href="/community"
-                  className="text-white bg-white/10 px-3 py-1 rounded-full hover:bg-white/20"
-                >
+                <Link href="/community" className="text-white bg-white/10 px-3 py-1 rounded-full hover:bg-white/20">
                   Back
                 </Link>
 
@@ -330,13 +368,7 @@ export default function CommunityDetailPage({ params }: Props) {
                         onClick={openEdit}
                         className="inline-flex items-center gap-2 bg-white/90 text-[#1e1e9b] px-3 py-2 rounded-full shadow"
                       >
-                        <svg
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="#1e1e9b"
-                          aria-hidden="true"
-                        >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="#1e1e9b" aria-hidden="true">
                           <path d="M3 11h8V3h2v8h8v2h-8v8h-2v-8H3z" />
                         </svg>
                         Edit Group
@@ -392,15 +424,12 @@ export default function CommunityDetailPage({ params }: Props) {
 
             {isAdmin && (
               <div className="flex items-center gap-3">
-                <button className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-gray-200 shadow">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="#1e1e9b" aria-hidden="true">
-                    <path
-                      d="M12 5v14M5 12h14"
-                      stroke="#1e1e9b"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
+                <button
+                  onClick={openEventModal}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-gray-200 shadow"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="#1e1e9b" aria-hidden>
+                    <path d="M12 5v14M5 12h14" stroke="#1e1e9b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                   Add Event
                 </button>
@@ -411,9 +440,7 @@ export default function CommunityDetailPage({ params }: Props) {
           {/* Posts */}
           <div className="mt-6 space-y-6">
             {posts.length === 0 ? (
-              <div className="bg-white border rounded-xl p-8 text-center text-gray-500">
-                No posts yet
-              </div>
+              <div className="bg-white border rounded-xl p-8 text-center text-gray-500">No posts yet</div>
             ) : (
               posts.map((post) => (
                 <article key={post._id} className="bg-white border rounded-xl shadow-sm p-6">
@@ -427,22 +454,14 @@ export default function CommunityDetailPage({ params }: Props) {
                         <div className="text-xs text-gray-500">{community.title}</div>
                       </div>
                     </div>
-                    <div className="text-xs text-gray-400">
-                      {new Date(post.createdAt).toLocaleDateString()}
-                    </div>
+                    <div className="text-xs text-gray-400">{new Date(post.createdAt).toLocaleDateString()}</div>
                   </header>
 
                   <div className="mt-4 text-gray-700 leading-relaxed">{post.desc}</div>
 
                   {post.image && (
                     <div className="mt-4 overflow-hidden rounded-lg">
-                      <Image
-                        src={post.image}
-                        width={1000}
-                        height={400}
-                        alt="post image"
-                        className="object-cover w-full h-48"
-                      />
+                      <Image src={post.image} width={1000} height={400} alt="post image" className="object-cover w-full h-48" />
                     </div>
                   )}
 
@@ -460,9 +479,7 @@ export default function CommunityDetailPage({ params }: Props) {
                       <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
                         <path
                           d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 10-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 000-7.78z"
-                          /* merah saat liked, transparan saat tidak */
                           fill={post.liked ? "currentColor" : "none"}
-                          /* outline ikut warna teks (abu/merah) */
                           stroke="currentColor"
                           strokeWidth="1.5"
                           strokeLinecap="round"
@@ -491,10 +508,7 @@ export default function CommunityDetailPage({ params }: Props) {
                   <div>
                     <div className="text-sm font-medium">@{member.username}</div>
                     <div className="text-xs text-gray-400">
-                      {member._id?.toString() ===
-                      ((community.createdBy as any)?._id ?? community.createdBy)?.toString()
-                        ? "Admin"
-                        : "Member"}
+                      {member._id?.toString() === ((community.createdBy as any)?._id ?? community.createdBy)?.toString() ? "Admin" : "Member"}
                     </div>
                   </div>
                 </div>
@@ -506,64 +520,35 @@ export default function CommunityDetailPage({ params }: Props) {
         <div className="hidden lg:block lg:col-span-0" />
       </div>
 
-      {/* ===== Edit Modal (hanya admin) ===== */}
+      {/* ===== Edit Modal (existing) ===== */}
       {editOpen && (
-        <div
-          className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
-          onClick={() => setEditOpen(false)}
-        >
-          <div
-            className="w-full max-w-2xl bg-white rounded-xl shadow-xl overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setEditOpen(false)}>
+          <div className="w-full max-w-2xl bg-white rounded-xl shadow-xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="p-6 border-b">
               <h2 className="text-lg font-semibold">Edit Community</h2>
             </div>
 
             <div className="p-6 space-y-4">
-              {/* Banner preview + picker */}
               <div>
                 <div className="text-sm font-medium text-gray-700 mb-2">Banner</div>
-                <div
-                  className="relative w-full bg-gray-100 rounded-lg overflow-hidden"
-                  style={{ paddingTop: "20%" }}
-                >
+                <div className="relative w-full bg-gray-100 rounded-lg overflow-hidden" style={{ paddingTop: "20%" }}>
                   {editBannerPreview ? (
-                    // pakai img biasa agar preview blob URL aman
-                    <img
-                      src={editBannerPreview}
-                      alt="banner preview"
-                      className="absolute inset-0 w-full h-full object-cover"
-                    />
+                    <img src={editBannerPreview} alt="banner preview" className="absolute inset-0 w-full h-full object-cover" />
                   ) : (
-                    <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-sm">
-                      No banner
-                    </div>
+                    <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-sm">No banner</div>
                   )}
                 </div>
                 <div className="mt-3">
                   <label className="inline-flex items-center gap-2 px-3 py-2 rounded-md border bg-white hover:bg-gray-50 cursor-pointer">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                      <path
-                        d="M12 5v14M5 12h14"
-                        stroke="#111827"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
+                      <path d="M12 5v14M5 12h14" stroke="#111827" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                     <span className="text-sm">Change Banner</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={onPickBanner}
-                    />
+                    <input type="file" accept="image/*" className="hidden" onChange={onPickBanner} />
                   </label>
                 </div>
               </div>
 
-              {/* Title */}
               <div>
                 <div className="text-sm font-medium text-gray-700 mb-2">Name</div>
                 <input
@@ -575,7 +560,6 @@ export default function CommunityDetailPage({ params }: Props) {
                 />
               </div>
 
-              {/* Description */}
               <div>
                 <div className="text-sm font-medium text-gray-700 mb-2">Description</div>
                 <textarea
@@ -586,19 +570,11 @@ export default function CommunityDetailPage({ params }: Props) {
                 />
               </div>
 
-              {editError && (
-                <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
-                  {editError}
-                </div>
-              )}
+              {editError && <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{editError}</div>}
             </div>
 
             <div className="p-6 border-t flex items-center justify-end gap-3">
-              <button
-                onClick={() => setEditOpen(false)}
-                className="px-4 py-2 rounded-md border bg-white hover:bg-gray-50"
-                disabled={savingEdit}
-              >
+              <button onClick={() => setEditOpen(false)} className="px-4 py-2 rounded-md border bg-white hover:bg-gray-50" disabled={savingEdit}>
                 Cancel
               </button>
               <button
@@ -607,6 +583,86 @@ export default function CommunityDetailPage({ params }: Props) {
                 disabled={savingEdit}
               >
                 {savingEdit ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== NEW: Add Event Modal (ADMIN ONLY) ===== */}
+      {eventOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* backdrop */}
+          <div className="absolute inset-0 bg-black/60" onClick={() => setEventOpen(false)} />
+          {/* modal */}
+          <div className="relative z-10 w-[92vw] max-w-3xl bg-white rounded-2xl shadow-xl overflow-hidden">
+            <div className="px-6 py-5 border-b flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-[#3434b8]">Add New Event</h3>
+              <button onClick={() => setEventOpen(false)} className="p-2 rounded-md hover:bg-gray-100">
+                <span className="sr-only">Close</span>
+                ✕
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              {/* Title */}
+              <div>
+                <div className="text-sm font-semibold mb-2">Title</div>
+                <input
+                  type="text"
+                  value={evTitle}
+                  onChange={(e) => setEvTitle(e.target.value)}
+                  placeholder="Write here.."
+                  className="w-full border rounded-md px-4 py-2"
+                />
+              </div>
+
+              {/* Date */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <div className="text-sm font-semibold mb-2">Date</div>
+                  <div className="flex items-center gap-3">
+                    <input type="date" value={evStartDate} onChange={(e) => setEvStartDate(e.target.value)} className="w-full border rounded-md px-3 py-2" />
+                    <span className="text-gray-400">—</span>
+                    <input type="date" value={evEndDate} onChange={(e) => setEvEndDate(e.target.value)} className="w-full border rounded-md px-3 py-2" />
+                  </div>
+                </div>
+
+                {/* Time */}
+                <div>
+                  <div className="text-sm font-semibold mb-2">Time</div>
+                  <div className="flex items-center gap-3">
+                    <input type="time" value={evStartTime} onChange={(e) => setEvStartTime(e.target.value)} className="w-full border rounded-md px-3 py-2" />
+                    <span className="text-gray-400">—</span>
+                    <input type="time" value={evEndTime} onChange={(e) => setEvEndTime(e.target.value)} className="w-full border rounded-md px-3 py-2" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Description */}
+              <div>
+                <div className="text-sm font-semibold mb-2">Description</div>
+                <textarea
+                  value={evDesc}
+                  onChange={(e) => setEvDesc(e.target.value)}
+                  placeholder="Write here.."
+                  className="w-full border rounded-md px-4 py-3 h-28"
+                />
+              </div>
+
+              {eventError && <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{eventError}</div>}
+            </div>
+
+            <div className="px-6 py-4 border-t flex items-center justify-end gap-3">
+              <button onClick={() => setEventOpen(false)} className="px-4 py-2 rounded-md border bg-white hover:bg-gray-50" disabled={savingEvent}>
+                Cancel
+              </button>
+              <button
+                onClick={saveEvent}
+                className="px-4 py-2 rounded-md text-white bg-[#5B5BD8] hover:opacity-90 disabled:opacity-50"
+                disabled={savingEvent}
+              >
+                {savingEvent ? "Saving..." : "Add Event"}
               </button>
             </div>
           </div>

@@ -8,50 +8,86 @@ import {
   ChevronUp,
   MoreVertical,
 } from "lucide-react";
-
 import { useAuth } from "@/app/contexts/AuthContext";
 
-type SavedEvent = {
-  _id: string;
-  eventId: {
-    _id: string;
-    title: string;
-    desc: string;
-    startDate: string;
-    endDate: string;
-    image?: string;
-    communityId: {
+/* ================== Types ================== */
+type PopulatedCommunity =
+  | string
+  | {
       _id: string;
-      title: string;
+      title?: string;
     };
-  };
+
+type PopulatedEventObj = {
+  _id: string;
+  title?: string;
+  desc?: string;
+  startDate?: string; // ISO string
+  endDate?: string; // ISO string
+  image?: string;
+  communityId?: PopulatedCommunity;
 };
 
-type Event = {
+type SavedEvent =
+  | {
+      _id: string;
+      eventId?: string | PopulatedEventObj;
+    }
+  | any; // fallback for unknown shapes coming from API
+
+type UiEvent = {
   id: string;
   day: number;
   time: string;
   title: string;
   community: string;
-  color: "purple" | "orange" | "pink";
   description: string;
+  color: "purple" | "orange" | "pink";
   fullStartDate: Date;
 };
 
-interface MiniCalendarProps {
+type MiniCalendarProps = {
   selectedDate: Date;
   onDateChange: (date: Date) => void;
   currentMonth: Date;
   onMonthChange: (date: Date) => void;
   eventDays: number[];
-}
+};
 
-interface EventCardProps {
-  event: Event;
+type EventCardProps = {
+  event: UiEvent;
   isExpanded: boolean;
   onToggle: () => void;
+};
+
+/* ================== Helpers ================== */
+function getCommunityTitle(c: PopulatedCommunity | undefined): string {
+  if (!c) return "Community";
+  if (typeof c === "string") return "Community";
+  return c.title || "Community";
 }
 
+function formatTimeRange(startISO?: string, endISO?: string): string {
+  if (!startISO || !endISO) return "";
+  const start = new Date(startISO);
+  const end = new Date(endISO);
+  const startTime = start.toLocaleTimeString("id-ID", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const endTime = end.toLocaleTimeString("id-ID", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  return `${startTime}-${endTime} WIB`;
+}
+
+function colorForIndex(i: number): UiEvent["color"] {
+  const arr: UiEvent["color"][] = ["purple", "orange", "pink"];
+  return arr[i % arr.length];
+}
+
+/* ================== UI Bits ================== */
 const MiniCalendar = ({
   selectedDate,
   onDateChange,
@@ -61,13 +97,10 @@ const MiniCalendar = ({
 }: MiniCalendarProps) => {
   const daysOfWeek = ["S", "M", "T", "W", "T", "F", "S"];
 
-  const getDaysInMonth = (year: number, month: number): number => {
-    return new Date(year, month + 1, 0).getDate();
-  };
-
-  const getFirstDayOfMonth = (year: number, month: number): number => {
-    return new Date(year, month, 1).getDay();
-  };
+  const getDaysInMonth = (y: number, m: number) =>
+    new Date(y, m + 1, 0).getDate();
+  const getFirstDayOfMonth = (y: number, m: number) =>
+    new Date(y, m, 1).getDay();
 
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
@@ -78,31 +111,14 @@ const MiniCalendar = ({
   const days: number[] = Array.from({ length: daysInMonth }, (_, i) => i + 1);
   const allDays: (number | null)[] = [...blanks, ...days];
 
-  const handlePrevMonth = () => {
-    onMonthChange(new Date(year, month - 1, 1));
-  };
+  const isSelected = (day: number | null): boolean =>
+    !!day &&
+    selectedDate.getDate() === day &&
+    selectedDate.getMonth() === month &&
+    selectedDate.getFullYear() === year;
 
-  const handleNextMonth = () => {
-    onMonthChange(new Date(year, month + 1, 1));
-  };
-
-  const handleDateClick = (day: number | null) => {
-    if (!day) return;
-    onDateChange(new Date(year, month, day));
-  };
-
-  const isSelected = (day: number | null): boolean => {
-    return (
-      !!day &&
-      selectedDate.getDate() === day &&
-      selectedDate.getMonth() === month &&
-      selectedDate.getFullYear() === year
-    );
-  };
-
-  const hasEvent = (day: number | null): boolean => {
-    return !!day && eventDays.includes(day);
-  };
+  const hasEvent = (day: number | null): boolean =>
+    !!day && eventDays.includes(day);
 
   return (
     <div className="bg-blue-50/50 rounded-xl p-4 sticky top-24 border border-blue-100">
@@ -115,13 +131,13 @@ const MiniCalendar = ({
         </span>
         <div className="flex items-center gap-2">
           <button
-            onClick={handlePrevMonth}
+            onClick={() => onMonthChange(new Date(year, month - 1, 1))}
             className="text-gray-500 hover:text-gray-800"
           >
             <ChevronLeft size={20} />
           </button>
           <button
-            onClick={handleNextMonth}
+            onClick={() => onMonthChange(new Date(year, month + 1, 1))}
             className="text-gray-500 hover:text-gray-800"
           >
             <ChevronRight size={20} />
@@ -130,24 +146,19 @@ const MiniCalendar = ({
       </div>
 
       <div className="grid grid-cols-7 gap-1 text-center">
-        {daysOfWeek.map((day: string, index: number) => (
-          <div
-            key={`${day}-${index}`}
-            className="text-xs font-medium text-gray-500 mb-2"
-          >
-            {day}
+        {daysOfWeek.map((d, i) => (
+          <div key={`${d}-${i}`} className="text-xs font-medium text-gray-500 mb-2">
+            {d}
           </div>
         ))}
 
-        {allDays.map((day: number | null, index: number) => (
+        {allDays.map((day, i) => (
           <button
-            key={index}
-            onClick={() => handleDateClick(day)}
-            className={`
-              w-8 h-8 flex items-center justify-center rounded-full text-sm relative
-              ${day ? "hover:bg-blue-100" : "cursor-default"}
-              ${isSelected(day) ? "bg-[#5858FA] text-white" : "text-gray-700"}
-            `}
+            key={i}
+            onClick={() => day && onDateChange(new Date(year, month, day))}
+            className={`w-8 h-8 flex items-center justify-center rounded-full text-sm relative ${
+              day ? "hover:bg-blue-100" : "cursor-default"
+            } ${isSelected(day) ? "bg-[#5858FA] text-white" : "text-gray-700"}`}
             disabled={!day}
           >
             {day}
@@ -162,7 +173,10 @@ const MiniCalendar = ({
 };
 
 const EventCard = ({ event, isExpanded, onToggle }: EventCardProps) => {
-  const colorClasses = {
+  const colorClasses: Record<
+    UiEvent["color"],
+    { bg: string; text: string; border: string }
+  > = {
     purple: {
       bg: "bg-purple-100/60",
       text: "text-purple-700",
@@ -179,19 +193,10 @@ const EventCard = ({ event, isExpanded, onToggle }: EventCardProps) => {
       border: "border-pink-200",
     },
   };
-
-  const colors = colorClasses[event.color] || colorClasses.purple;
-
-  const timeParts = event.time.split(" ");
-  const time = timeParts[0] || "";
-  const period = timeParts[1] || "";
+  const colors = colorClasses[event.color];
 
   return (
-    <div
-      className={`rounded-xl border ${colors.border} ${
-        isExpanded ? "shadow-md" : "shadow-sm"
-      }`}
-    >
+    <div className={`rounded-xl border ${colors.border} ${isExpanded ? "shadow-md" : "shadow-sm"}`}>
       <div
         className={`p-4 flex items-center justify-between cursor-pointer ${colors.bg}`}
         onClick={onToggle}
@@ -199,19 +204,15 @@ const EventCard = ({ event, isExpanded, onToggle }: EventCardProps) => {
         <div className="flex items-center gap-4 flex-1 min-w-0">
           <div className="flex-shrink-0 text-left w-24">
             <span className="text-sm font-semibold text-gray-700 block">
-              {time}
+              {event.time.split(" ")[0] || ""}
             </span>
-            <span className="text-xs text-gray-500 block">{period}</span>
+            <span className="text-xs text-gray-500 block">
+              {event.time.split(" ")[1] || ""}
+            </span>
           </div>
-
           <div className="flex-1 min-w-0">
-            <span className={`font-semibold ${colors.text} truncate`}>
-              {event.title}
-            </span>
-            <span className="text-sm text-gray-500 hidden md:inline truncate">
-              {" "}
-              - {event.community}
-            </span>
+            <span className={`font-semibold ${colors.text} truncate`}>{event.title}</span>
+            <span className="text-sm text-gray-500 hidden md:inline truncate"> — {event.community}</span>
           </div>
         </div>
         <button className="text-gray-500 hover:text-gray-800 ml-4">
@@ -222,9 +223,7 @@ const EventCard = ({ event, isExpanded, onToggle }: EventCardProps) => {
       {isExpanded && (
         <div className="p-4 bg-white rounded-b-xl">
           <div className="flex justify-between items-start">
-            <div>
-              <p className="text-sm text-gray-500">{event.description}</p>
-            </div>
+            <p className="text-sm text-gray-500">{event.description}</p>
             <button className="text-gray-400 hover:text-gray-700">
               <MoreVertical size={20} />
             </button>
@@ -235,103 +234,79 @@ const EventCard = ({ event, isExpanded, onToggle }: EventCardProps) => {
   );
 };
 
+/* ================== Page ================== */
 export default function CalendarPage() {
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
-  const [savedEvents, setSavedEvents] = useState<SavedEvent[]>([]);
-  const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
+  const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
+  const [savedEvents, setSavedEvents] = useState<SavedEvent[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+
   useEffect(() => {
-    if (user) {
-      fetchSavedEvents();
-    }
+    if (user) fetchSavedEvents();
   }, [user]);
 
-  const fetchSavedEvents = async () => {
+  async function fetchSavedEvents() {
     try {
-      const res = await fetch("/api/calender", {
-        credentials: "include",
-      });
+      const res = await fetch("/api/calender", { credentials: "include" });
       const data = await res.json();
-      if (data.events) {
-        setSavedEvents(data.events);
-      }
-    } catch (error) {
-      console.error("Error fetching saved events:", error);
+      // dukung { events: [...] } ATAU { saved: [...] }
+      const arr: SavedEvent[] = Array.isArray(data?.events)
+        ? data.events
+        : Array.isArray(data?.saved)
+        ? data.saved
+        : [];
+      setSavedEvents(arr);
+    } catch (e) {
+      console.error("Error fetching saved events:", e);
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const getColorForIndex = (index: number): "purple" | "orange" | "pink" => {
-    const colors: ("purple" | "orange" | "pink")[] = [
-      "purple",
-      "orange",
-      "pink",
-    ];
-    return colors[index % colors.length];
-  };
+  // Normalisasi savedEvents -> UiEvent[]
+  const uiEvents: UiEvent[] = savedEvents.flatMap((saved, index) => {
+    const evRaw = (saved as any)?.eventId as undefined | string | PopulatedEventObj;
+    // kalau belum populate / masih string → skip (tidak bisa render tanggal)
+    if (!evRaw || typeof evRaw === "string") return [];
 
-  const formatTime = (startDate: string, endDate: string) => {
+    const { startDate, endDate, title, desc, communityId } = evRaw;
+    if (!startDate) return [];
+
     const start = new Date(startDate);
-    const end = new Date(endDate);
-
-    const startTime = start.toLocaleTimeString("id-ID", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-    const endTime = end.toLocaleTimeString("id-ID", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-
-    return `${startTime}-${endTime} WIB`;
-  };
-
-  const events: Event[] = savedEvents.map((saved, index) => {
-    const startDate = new Date(saved.eventId.startDate);
-    return {
-      id: saved._id,
-      day: startDate.getDate(),
-      time: formatTime(saved.eventId.startDate, saved.eventId.endDate),
-      title: saved.eventId.title,
-      community: saved.eventId.communityId.title,
-      color: getColorForIndex(index),
-      description: saved.eventId.desc,
-      fullStartDate: startDate,
-    };
+    return [
+      {
+        id: (saved as any)._id ?? `${index}`,
+        day: start.getDate(),
+        time: formatTimeRange(startDate, endDate),
+        title: title || "Untitled",
+        community: getCommunityTitle(communityId),
+        description: desc || "",
+        color: colorForIndex(index),
+        fullStartDate: start,
+      },
+    ];
   });
 
-  const groupEventsByDay = () => {
-    const grouped: { [key: string]: Event[] } = {};
+  // Hari yang punya event (untuk dot di mini calendar)
+  const eventDays: number[] = uiEvents.map((e) => e.day);
 
-    events.forEach((event) => {
-      const dateKey = event.fullStartDate.toDateString();
-      if (!grouped[dateKey]) {
-        grouped[dateKey] = [];
-      }
-      grouped[dateKey].push(event);
-    });
+  // Grouping by day (KETIK DENGAN JELAS → hilangin 'unknown'!)
+  const grouped: Record<string, UiEvent[]> = uiEvents.reduce(
+    (acc: Record<string, UiEvent[]>, ev) => {
+      const key = ev.fullStartDate.toDateString();
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(ev);
+      return acc;
+    },
+    {} as Record<string, UiEvent[]>
+  );
 
-    return Object.entries(grouped)
-      .map(([dateKey, events]) => ({
-        date: new Date(dateKey),
-        events: events.sort(
-          (a, b) => a.fullStartDate.getTime() - b.fullStartDate.getTime()
-        ),
-      }))
-      .sort((a, b) => a.date.getTime() - b.date.getTime());
-  };
-
-  const dayGroups = groupEventsByDay();
-
-  const eventDays = events.map((event) => event.day);
-
-  const handleExpandToggle = (id: string) => {
-    setExpandedEventId((prevId) => (prevId === id ? null : id));
-  };
+  // Toggle expand (kalau nanti mau dipakai)
+  const handleExpandToggle = (id: string) =>
+    setExpandedEventId((prev) => (prev === id ? null : id));
 
   if (loading) {
     return (
@@ -344,52 +319,64 @@ export default function CalendarPage() {
     );
   }
 
+  const groupedEntries = Object.entries(grouped) as [string, UiEvent[]][];
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-4 md:p-8">
+      {/* Left / Main */}
       <div className="lg:col-span-2">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">Calendar</h1>
 
-        {dayGroups.length === 0 ? (
+        {groupedEntries.length === 0 ? (
           <div className="bg-white rounded-xl p-8 text-center text-gray-500">
             No saved events. Save events from the Event page to see them here!
           </div>
         ) : (
           <div className="space-y-6">
-            {dayGroups.map((group) => {
-              const dateStr = group.date.toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-                weekday: "short",
-              });
+            {groupedEntries
+              .map(([dateKey, list]) => ({
+                date: new Date(dateKey),
+                events: [...list].sort(
+                  (a, b) => a.fullStartDate.getTime() - b.fullStartDate.getTime()
+                ),
+              }))
+              .sort((a, b) => a.date.getTime() - b.date.getTime())
+              .map(({ date, events }) => {
+                const header = date.toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  weekday: "short",
+                });
 
-              return (
-                <div key={group.date.toISOString()}>
-                  <div className="flex items-center gap-4 mb-4">
-                    <span className="text-3xl font-bold text-gray-800 w-10">
-                      {group.date.getDate()}
-                    </span>
-                    <span className="font-semibold text-gray-500 uppercase">
-                      {dateStr}
-                    </span>
-                  </div>
+                return (
+                  <div key={date.toISOString()}>
+                    <div className="flex items-center gap-4 mb-4">
+                      <span className="text-3xl font-bold text-gray-800 w-10">
+                        {date.getDate()}
+                      </span>
+                      <span className="font-semibold text-gray-500 uppercase">
+                        {header}
+                      </span>
+                    </div>
 
-                  <div className="space-y-3">
-                    {group.events.map((event) => (
-                      <EventCard
-                        key={event.id}
-                        event={event}
-                        isExpanded={expandedEventId === event.id}
-                        onToggle={() => handleExpandToggle(event.id)}
-                      />
-                    ))}
+                    <div className="space-y-3">
+                      {events.map((ev) => (
+                        <EventCard
+                          key={ev.id}
+                          event={ev}
+                          isExpanded={expandedEventId === ev.id}
+                          onToggle={() => handleExpandToggle(ev.id)}
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
           </div>
         )}
       </div>
 
+      {/* Right / Mini Calendar */}
       <div className="lg:col-span-1">
         <MiniCalendar
           selectedDate={selectedDate}

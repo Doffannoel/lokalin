@@ -1,40 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import dbConnect from "@/lib/dbConnect";
 import SavedEvent from "@/models/SavedEvent";
-import { getUserFromToken } from "@/lib/auth";
+import { getUserFromRequest } from "@/lib/auth";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
     await dbConnect();
 
-    const cookieStore = await cookies();
-    const token = cookieStore.get("token")?.value;
-    const user = await getUserFromToken(token);
-    if (!user)
+    const user = await getUserFromRequest(req);
+    if (!user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
 
-    // Ambil semua event yang user simpan
+    // ✅ Populate FULL: eventId + communityId + createdBy
     const savedEvents = await SavedEvent.find({ userId: user._id })
       .populate({
         path: "eventId",
-        select: "title desc startDate endDate image communityId createdBy",
+        populate: [
+          { path: "communityId", select: "title totalUsers" },
+          { path: "createdBy", select: "username" }
+        ],
       })
+      .sort({ savedAt: -1 })
       .lean();
 
-    // Format untuk UI kalender
-    const events = savedEvents.map((item) => ({
-      id: item.eventId._id,
-      title: item.eventId.title,
-      description: item.eventId.desc,
-      start: item.eventId.startDate,
-      end: item.eventId.endDate,
-      image: item.eventId.image,
-      communityId: item.eventId.communityId,
-      createdBy: item.eventId.createdBy,
-    }));
+    // ✅ Kembalikan dalam struktur yang CalendarPage kamu EXPECT
+    return NextResponse.json({ events: savedEvents });
 
-    return NextResponse.json({ events });
   } catch (err) {
     console.error("Calendar fetch error:", err);
     return NextResponse.json(
