@@ -23,6 +23,7 @@ type Post = {
   };
   likes: number;
   likesBy: string[];
+  comments: any[];
   createdAt: string;
 };
 
@@ -38,18 +39,22 @@ export default function HomePage() {
   const [communities, setCommunities] = useState<Community[]>([]);
   const [loading, setLoading] = useState(true);
   const [comment, setComment] = useState("");
-  const [comments, setComments] = useState<Record<string, string[]>>({});
   const [showComments, setShowComments] = useState<Record<string, boolean>>({});
   const { user } = useAuth();
 
   useEffect(() => {
-    fetchPosts();
     fetchCommunities();
   }, []);
 
-  const fetchPosts = async () => {
+  const fetchPosts = async (communityIds: string[]) => {
+    if (communityIds.length === 0) {
+      setPosts([]);
+      setLoading(false);
+      return;
+    }
+
     try {
-      const res = await fetch("/api/post", {
+      const res = await fetch(`/api/post?community_ids=${communityIds.join(',')}`, {
         credentials: "include",
       });
       const data = await res.json();
@@ -69,35 +74,66 @@ export default function HomePage() {
         credentials: "include",
       });
       const data = await res.json();
+      const communityIds = (data.communities || []).filter(Boolean).map((c: any) => c._id);
       setCommunities((data.communities || []).filter(Boolean));
+      fetchPosts(communityIds);
     } catch (error) {
       console.error("Error fetching communities:", error);
     }
   };
 
   const handleLike = async (postId: string) => {
+    const originalPosts = [...posts];
+    const updatedPosts = posts.map(p => {
+      if (p._id === postId) {
+        const isLiked = p.likesBy?.includes(user!.id);
+        return {
+          ...p,
+          likes: isLiked ? p.likes - 1 : p.likes + 1,
+          likesBy: isLiked ? p.likesBy.filter(id => id !== user!.id) : [...(p.likesBy || []), user!.id]
+        };
+      }
+      return p;
+    });
+
+    setPosts(updatedPosts);
+
     try {
       const res = await fetch(`/api/post/${postId}/like`, {
         method: "POST",
         credentials: "include",
       });
 
-      if (res.ok) {
-        // Refresh posts
-        fetchPosts();
+      if (!res.ok) {
+        // Revert on error
+        setPosts(originalPosts);
       }
     } catch (error) {
       console.error("Error liking post:", error);
+      // Revert on error
+      setPosts(originalPosts);
     }
   };
 
-  const handleComment = (postId: string) => {
-    if (comment.trim()) {
-      setComments((prev) => ({
-        ...prev,
-        [postId]: [...(prev[postId] || []), comment],
-      }));
-      setComment("");
+  const handleComment = async (postId: string) => {
+    if (!comment.trim()) return;
+
+    try {
+      const res = await fetch(`/api/post/${postId}/comment`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ text: comment }),
+      });
+
+      if (res.ok) {
+        setComment("");
+        fetchCommunities(); // Refetch posts to show the new comment
+      }
+    } catch (error) {
+      console.error("Error posting comment:", error);
     }
   };
 
@@ -116,9 +152,11 @@ export default function HomePage() {
     <>
       <PostModal
         isOpen={isModalOpen}
-        onClose={() => {
+        onClose={(postCreated) => {
           setIsModalOpen(false);
-          fetchPosts();
+          if (postCreated) {
+            fetchCommunities();
+          }
         }}
       />
 
@@ -234,7 +272,7 @@ export default function HomePage() {
                     >
                       <MessageCircle size={18} />
                       <span className="text-sm font-medium">
-                        {(comments[post._id] || []).length} Comments
+                        {post.comments.length} Comments
                       </span>
                     </button>
                   </div>
@@ -265,15 +303,15 @@ export default function HomePage() {
                       </div>
 
                       {/* Comments List */}
-                      {comments[post._id] && comments[post._id].length > 0 && (
+                      {post.comments && post.comments.length > 0 && (
                         <div className="space-y-2">
-                          {comments[post._id].map((cmt, index) => (
+                          {post.comments.map((cmt: any, index) => (
                             <div key={index} className="flex gap-2">
                               <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-400 to-blue-400 flex items-center justify-center text-white font-semibold text-xs">
-                                {user?.username?.charAt(0).toUpperCase() || "U"}
+                                {cmt.user_id?.username?.charAt(0).toUpperCase() || "U"}
                               </div>
                               <div className="bg-gray-50 rounded-lg px-3 py-2 flex-1">
-                                <p className="text-sm text-gray-700">{cmt}</p>
+                                <p className="text-sm text-gray-700">{cmt.text}</p>
                               </div>
                             </div>
                           ))}

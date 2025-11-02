@@ -4,13 +4,14 @@ import dbConnect from "@/lib/dbConnect";
 import Community from "@/models/Community";
 import { getUserFromRequest } from "@/lib/auth";
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params;
   await dbConnect();
 
   const user = await getUserFromRequest(req);
   if (!user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
-  const community = await Community.findById(params.id);
+  const community = await Community.findById(id);
   if (!community) return NextResponse.json({ message: "Komunitas tidak ditemukan" }, { status: 404 });
 
   const already = community.members.some((m: any) => m.toString() === user._id.toString());

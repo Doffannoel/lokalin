@@ -8,7 +8,8 @@ export interface IPost extends Document {
   community_id: mongoose.Types.ObjectId;
   likes: number;
   createdAt: Date;
-  likesBy: mongoose.Types.ObjectId[]; 
+  likesBy: mongoose.Types.ObjectId[];
+  comments: mongoose.Types.ObjectId[];
 }
 
 const postSchema = new Schema<IPost>({
@@ -20,6 +21,7 @@ const postSchema = new Schema<IPost>({
   likes: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now },
   likesBy: [{ type: Schema.Types.ObjectId, ref: "User" }],
+  comments: [{ type: Schema.Types.ObjectId, ref: "Comment" }],
 });
 
 export default mongoose.models.Post || mongoose.model<IPost>("Post", postSchema);

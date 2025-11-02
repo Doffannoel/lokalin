@@ -5,6 +5,8 @@ import mongoose from "mongoose";
 import dbConnect from "@/lib/dbConnect";
 import Post from "@/models/Post";
 import Community from "@/models/Community";
+import "@/models/Comment";
+import "@/models/Users";
 
 const isObjectId = (s: string) => /^[0-9a-fA-F]{24}$/.test(s);
 
@@ -35,6 +37,7 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const qpCommunity = searchParams.get("community_id"); // bisa ObjectId ATAU slug (kompat)
   const slug = searchParams.get("slug");
+  const communityIds = searchParams.get("community_ids");
 
   let filter: any = {};
 
@@ -51,13 +54,23 @@ export async function GET(req: Request) {
     const comm = await Community.findOne({ slug }).select("_id");
     if (!comm) return NextResponse.json([]); // tidak ada → kosong
     filter = { community_id: comm._id };
+  } else if (communityIds) {
+    const ids = communityIds.split(',').map(id => new mongoose.Types.ObjectId(id));
+    filter = { community_id: { $in: ids } };
   }
   // else: tanpa filter → semua post (home page)
 
   const posts = await Post.find(filter)
     .sort({ createdAt: -1 })
     .populate("user_id", "username image")
-    .populate("community_id", "title");
+    .populate("community_id", "title")
+    .populate({
+      path: "comments",
+      populate: {
+        path: "userId",
+        select: "username image",
+      },
+    });
 
   // PENTING: kembalikan ARRAY (kompat dengan kode lamamu)
   return NextResponse.json(posts);

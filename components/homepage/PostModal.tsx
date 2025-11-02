@@ -9,7 +9,7 @@ import { useAuth } from "@/app/contexts/AuthContext";
 
 interface CreatePostModalProps {
   isOpen: boolean;
-  onClose: () => void;
+  onClose: (postCreated: boolean) => void;
 }
 
 type Community = {
@@ -127,7 +127,7 @@ export default function CreatePostModal({
       }
 
       // Success - close modal
-      onClose();
+      onClose(true);
     } catch (err: any) {
       setError(err.message || "An error occurred");
     } finally {
@@ -177,7 +177,7 @@ export default function CreatePostModal({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          onClick={onClose}
+          onClick={() => onClose(false)}
           className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
         >
           <motion.div
@@ -246,7 +246,7 @@ export default function CreatePostModal({
                 </div>
               </div>
               <button
-                onClick={onClose}
+                onClick={() => onClose(false)}
                 className="text-gray-400 hover:text-gray-700"
               >
                 <X size={24} />

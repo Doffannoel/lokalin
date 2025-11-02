@@ -42,7 +42,7 @@ describe("CommunityCard Component", () => {
 
     expect(screen.getByText("Test Community")).toBeInTheDocument();
     expect(screen.getByText("This is a test community")).toBeInTheDocument();
-    expect(screen.getByText("+50")).toBeInTheDocument();
+    expect(screen.getByText("50 members")).toBeInTheDocument();
   });
 
   it("should show Join button when mine is false", () => {
