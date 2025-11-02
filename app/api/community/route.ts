@@ -2,7 +2,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Community from "@/models/Community";
+import Post from "@/models/Post";
 import { getUserFromRequest } from "@/lib/auth";
+import mongoose from "mongoose";
 
 // ✅ CREATE COMMUNITY
 export async function POST(req: NextRequest) {
@@ -33,26 +35,68 @@ export async function POST(req: NextRequest) {
   );
 }
 
-// ✅ GET ALL COMMUNITY (FILTERABLE)
+// ✅ GET ALL COMMUNITY (FILTERABLE) + isMember + postsCount
 export async function GET(req: NextRequest) {
   await dbConnect();
 
-  const user = await getUserFromRequest(req); // boleh null jika belum login
+  const user = await getUserFromRequest(req).catch(() => null); // boleh null
+  const userId = user?._id ? new mongoose.Types.ObjectId(user._id) : null;
+
   const { searchParams } = new URL(req.url);
   const filter = searchParams.get("filter"); // "all" | "joined" | "unjoined"
 
   let query: any = {};
-
-  if (user && filter === "joined") {
-    query = { members: user._id };
-  } else if (user && filter === "unjoined") {
-    query = { members: { $ne: user._id } };
+  if (userId && filter === "joined") {
+    query = { $or: [{ createdBy: userId }, { members: userId }] };
+  } else if (userId && filter === "unjoined") {
+    query = { members: { $ne: userId } };
   }
-  // else: "all" atau tidak login -> query {}
+  // else: "all" atau belum login -> {}
 
+  // Ambil komunitas dasar
   const communities = await Community.find(query)
-    .populate("createdBy", "username email")
-    .populate("members", "username email");
+    .select("_id title desc image members createdBy totalUsers slug") // slug opsional
+    .populate("members", "username image") // opsional: untuk preview avatar/nama
+    .lean();
 
-  return NextResponse.json({ communities });
+  if (communities.length === 0) {
+    return NextResponse.json({ communities: [] });
+  }
+
+  // Hitung posts per komunitas (ANTI N+1)
+  const ids = communities.map((c: any) => c._id);
+  const counts = await Post.aggregate([
+    { $match: { community_id: { $in: ids } } },
+    { $group: { _id: "$community_id", count: { $sum: 1 } } },
+  ]);
+
+  const countMap = new Map<string, number>();
+  counts.forEach((row: any) => countMap.set(String(row._id), row.count));
+
+  // Enrich: isMember, postsCount, totalUsers (fallback)
+  const enriched = communities.map((c: any) => {
+    const totalUsers =
+      typeof c.totalUsers === "number"
+        ? c.totalUsers
+        : Array.isArray(c.members)
+        ? c.members.length
+        : 0;
+
+    const isMember =
+      !!userId &&
+      (String(c.createdBy) === String(userId) ||
+        (Array.isArray(c.members) &&
+          c.members.some(
+            (m: any) => String(m?._id ?? m) === String(userId)
+          )));
+
+    return {
+      ...c,
+      totalUsers,
+      postsCount: countMap.get(String(c._id)) ?? 0,
+      isMember,
+    };
+  });
+
+  return NextResponse.json({ communities: enriched });
 }
