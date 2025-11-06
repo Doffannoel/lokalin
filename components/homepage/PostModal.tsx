@@ -92,6 +92,7 @@ export default function CreatePostModal({
       if (attachedImages.length > 0) {
         const formData = new FormData();
         formData.append("file", attachedImages[0]);
+        formData.append("folder", "SOA/Post"); // 👈 Tambahkan ini
 
         const uploadRes = await fetch("/api/upload", {
           method: "POST",
@@ -313,9 +314,8 @@ export default function CreatePostModal({
                 onClick={handlePost}
                 disabled={isPostButtonDisabled}
                 variant="primary"
-                className={`transition-opacity ${
-                  isPostButtonDisabled ? "opacity-50 cursor-not-allowed" : ""
-                }`}
+                className={`transition-opacity ${isPostButtonDisabled ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
               >
                 {loading ? "Posting..." : "Post"}
               </Button>

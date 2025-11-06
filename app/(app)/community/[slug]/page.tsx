@@ -59,7 +59,7 @@ export default function CommunityDetailPage({ params }: Props) {
   const [eventError, setEventError] = useState("");
 
   function combineDateTime(date: string, time: string) {
-  return new Date(`${date}T${time}:00`).toISOString();
+    return new Date(`${date}T${time}:00`).toISOString();
   }
 
   useEffect(() => {
@@ -91,16 +91,16 @@ export default function CommunityDetailPage({ params }: Props) {
       const raw: any[] = Array.isArray(data?.posts)
         ? data.posts
         : Array.isArray(data)
-        ? data
-        : [];
+          ? data
+          : [];
 
       const withLiked: Post[] = raw.map((p: any) => {
         const liked =
           typeof p.liked === "boolean"
             ? p.liked
             : Array.isArray(p.likesBy) && user?.id
-            ? p.likesBy.some((u: any) => u?.toString?.() === user.id)
-            : false;
+              ? p.likesBy.some((u: any) => u?.toString?.() === user.id)
+              : false;
         return { ...p, liked };
       });
 
@@ -174,6 +174,8 @@ export default function CommunityDetailPage({ params }: Props) {
       if (editBannerFile) {
         const form = new FormData();
         form.append("file", editBannerFile);
+        form.append("folder", "SOA/Community"); // 👈 Tambahkan ini
+
         const up = await fetch("/api/upload", { method: "POST", body: form });
         const upData = await up.json();
         if (!up.ok || !upData?.success) throw new Error(upData?.error || "Failed to upload banner");
@@ -225,10 +227,10 @@ export default function CommunityDetailPage({ params }: Props) {
       setCommunity((prev) =>
         prev
           ? {
-              ...prev,
-              members: prev.members.filter((m: any) => (m?._id ?? m).toString() !== user.id.toString()),
-              totalUsers: Math.max(0, (prev.totalUsers || prev.members.length) - 1),
-            }
+            ...prev,
+            members: prev.members.filter((m: any) => (m?._id ?? m).toString() !== user.id.toString()),
+            totalUsers: Math.max(0, (prev.totalUsers || prev.members.length) - 1),
+          }
           : prev
       );
     } catch (e: any) {
@@ -246,10 +248,10 @@ export default function CommunityDetailPage({ params }: Props) {
       setCommunity((prev) =>
         prev
           ? {
-              ...prev,
-              members: [...prev.members, { _id: user.id, username: user.username }],
-              totalUsers: (prev.totalUsers || prev.members.length) + 1,
-            }
+            ...prev,
+            members: [...prev.members, { _id: user.id, username: user.username }],
+            totalUsers: (prev.totalUsers || prev.members.length) + 1,
+          }
           : prev
       );
     } catch (e: any) {
@@ -271,73 +273,73 @@ export default function CommunityDetailPage({ params }: Props) {
     }
   }
 
- function openEventModal() {
-  setEventError("");
-  setEvTitle("");
-  setEvDesc("");
-  setEvStartDate("");
-  setEvEndDate("");
-  setEvStartTime("");
-  setEvEndTime("");
-  setEventOpen(true);
-}
-
-async function saveEvent() {
-  if (!community) return;
-
-  // validasi dasar
-  if (
-    !evTitle.trim() ||
-    !evDesc.trim() ||
-    !evStartDate ||
-    !evEndDate ||
-    !evStartTime ||
-    !evEndTime
-  ) {
-    setEventError("Please complete all fields.");
-    return;
+  function openEventModal() {
+    setEventError("");
+    setEvTitle("");
+    setEvDesc("");
+    setEvStartDate("");
+    setEvEndDate("");
+    setEvStartTime("");
+    setEvEndTime("");
+    setEventOpen(true);
   }
 
-  const startISO = combineDateTime(evStartDate, evStartTime);
-  const endISO = combineDateTime(evEndDate, evEndTime);
+  async function saveEvent() {
+    if (!community) return;
 
-  // validasi rentang waktu
-  if (new Date(endISO) <= new Date(startISO)) {
-    setEventError("End date/time must be after start date/time.");
-    return;
+    // validasi dasar
+    if (
+      !evTitle.trim() ||
+      !evDesc.trim() ||
+      !evStartDate ||
+      !evEndDate ||
+      !evStartTime ||
+      !evEndTime
+    ) {
+      setEventError("Please complete all fields.");
+      return;
+    }
+
+    const startISO = combineDateTime(evStartDate, evStartTime);
+    const endISO = combineDateTime(evEndDate, evEndTime);
+
+    // validasi rentang waktu
+    if (new Date(endISO) <= new Date(startISO)) {
+      setEventError("End date/time must be after start date/time.");
+      return;
+    }
+
+    setSavingEvent(true);
+    setEventError("");
+
+    try {
+      // Gunakan endpoint Event yang sudah ada
+      const res = await fetch(`/api/event`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: evTitle.trim(),
+          desc: evDesc.trim(),
+          startDate: startISO,
+          endDate: endISO,
+          communityId: community._id, // penting: hubungkan ke komunitas ini
+          // image (opsional) bisa ditambahkan nanti kalau ada upload banner event
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.message || "Failed to create event");
+
+      // Berhasil → tutup modal & pindah ke tab Event
+      setEventOpen(false);
+      window.location.href = "/event";
+    } catch (e: any) {
+      setEventError(e?.message || "Failed to create event");
+    } finally {
+      setSavingEvent(false);
+    }
   }
-
-  setSavingEvent(true);
-  setEventError("");
-
-  try {
-    // Gunakan endpoint Event yang sudah ada
-    const res = await fetch(`/api/event`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: evTitle.trim(),
-        desc: evDesc.trim(),
-        startDate: startISO,
-        endDate: endISO,
-        communityId: community._id, // penting: hubungkan ke komunitas ini
-        // image (opsional) bisa ditambahkan nanti kalau ada upload banner event
-      }),
-    });
-
-    const data = await res.json();
-    if (!res.ok) throw new Error(data?.message || "Failed to create event");
-
-    // Berhasil → tutup modal & pindah ke tab Event
-    setEventOpen(false);
-    window.location.href = "/event";
-  } catch (e: any) {
-    setEventError(e?.message || "Failed to create event");
-  } finally {
-    setSavingEvent(false);
-  }
-}
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -472,9 +474,8 @@ async function saveEvent() {
                       disabled={!!liking[post._id]}
                       aria-pressed={!!post.liked}
                       title={post.liked ? "Unlike" : "Like"}
-                      className={`inline-flex items-center gap-2 text-sm transition-colors ${
-                        post.liked ? "text-rose-600" : "text-gray-600"
-                      } ${liking[post._id] ? "opacity-60 cursor-not-allowed" : "hover:opacity-90"}`}
+                      className={`inline-flex items-center gap-2 text-sm transition-colors ${post.liked ? "text-rose-600" : "text-gray-600"
+                        } ${liking[post._id] ? "opacity-60 cursor-not-allowed" : "hover:opacity-90"}`}
                     >
                       <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
                         <path

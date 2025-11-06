@@ -146,6 +146,8 @@ export default function CreateCommunityPage() {
       if (cover) {
         const formData = new FormData();
         formData.append("file", cover);
+        formData.append("folder", "SOA/Community"); // 👈 Tambahkan ini
+
         const uploadRes = await fetch("/api/upload", {
           method: "POST",
           body: formData,
